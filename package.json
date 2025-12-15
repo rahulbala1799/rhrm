@@ -1,0 +1,19 @@
+{
+  "name": "hr-and-staff-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:web": "cd apps/web && npm run dev",
+    "dev:mobile": "cd apps/mobile && npm start",
+    "dev:worker": "cd apps/worker && npm run dev",
+    "build:web": "cd apps/web && npm run build",
+    "build:worker": "cd apps/worker && npm run build"
+  },
+  "devDependencies": {
+    "supabase": "^2.67.1",
+    "typescript": "^5"
+  }
+}
