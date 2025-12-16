@@ -128,7 +128,7 @@ export default function Step3LocationsPage() {
     }
   }
 
-  const canProceed = skipped || (primaryAddress.addressLine1 && primaryAddress.city && primaryAddress.postcode)
+  const canProceed = !!(skipped || (primaryAddress.addressLine1 && primaryAddress.city && primaryAddress.postcode))
 
   return (
     <OnboardingLayout currentStep={3} totalSteps={7}>

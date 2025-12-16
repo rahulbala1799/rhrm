@@ -152,7 +152,7 @@ export default function Step6CompliancePage() {
           totalSteps={7}
           onNext={handleNext}
           onBack={() => router.push('/onboarding/step-5-work-patterns')}
-          canGoNext={skipped || country}
+          canGoNext={!!(skipped || country)}
           isLoading={isSaving}
           saveStatus={saveStatus}
         />

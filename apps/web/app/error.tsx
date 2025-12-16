@@ -10,7 +10,7 @@ export default function Error({
   return (
     <div style={{ padding: '2rem', textAlign: 'center' }}>
       <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>Something went wrong!</h1>
-      <p style={{ marginBottom: '1rem' }}>{error.message}</p>
+      <p style={{ marginBottom: '1rem' }}>{error?.message || 'An unexpected error occurred'}</p>
       <button
         onClick={reset}
         style={{

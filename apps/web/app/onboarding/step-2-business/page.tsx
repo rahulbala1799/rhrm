@@ -117,7 +117,7 @@ export default function Step2BusinessPage() {
     }
   }
 
-  const canProceed = businessName && slug && (!slug || slugAvailable !== false)
+  const canProceed = !!(businessName && slug && (!slug || slugAvailable !== false))
 
   return (
     <OnboardingLayout currentStep={2} totalSteps={7}>

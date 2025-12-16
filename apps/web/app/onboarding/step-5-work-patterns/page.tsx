@@ -138,7 +138,7 @@ export default function Step5WorkPatternsPage() {
           totalSteps={7}
           onNext={handleNext}
           onBack={() => router.push('/onboarding/step-4-team')}
-          canGoNext={workModel && workHours.length > 0 && weekStructure}
+          canGoNext={!!(workModel && workHours.length > 0 && weekStructure)}
           isLoading={isSaving}
           saveStatus={saveStatus}
         />

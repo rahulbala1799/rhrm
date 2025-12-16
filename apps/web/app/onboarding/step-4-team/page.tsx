@@ -132,7 +132,7 @@ export default function Step4TeamPage() {
           totalSteps={7}
           onNext={handleNext}
           onBack={() => router.push('/onboarding/step-3-locations')}
-          canGoNext={teamSize && teamStructure.length > 0}
+          canGoNext={!!(teamSize && teamStructure.length > 0)}
           isLoading={isSaving}
           saveStatus={saveStatus}
         />
