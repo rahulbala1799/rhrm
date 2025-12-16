@@ -45,3 +45,10 @@ build/
 *.tsbuildinfo
 next-env.d.ts
 
+apps/web/.env.vercel
+
+# API keys and secrets reference (local only, never commit)
+*.secrets
+*.keys
+.env.secrets
+.env.keys
