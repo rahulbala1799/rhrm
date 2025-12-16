@@ -27,10 +27,6 @@ export default function RolesPage() {
         }
         title="No roles defined"
         description="Create job roles to organize your staff and assign them to shifts. Roles can have different pay rates and permissions."
-        action={{
-          label: 'Add First Role',
-          onClick: () => {},
-        }}
       />
     </div>
   )

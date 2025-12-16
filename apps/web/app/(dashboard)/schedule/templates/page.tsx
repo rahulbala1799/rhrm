@@ -27,10 +27,6 @@ export default function TemplatesPage() {
         }
         title="No templates yet"
         description="Create shift templates to quickly schedule recurring patterns. Templates save time when planning regular shifts."
-        action={{
-          label: 'Create Template',
-          onClick: () => {},
-        }}
       />
     </div>
   )

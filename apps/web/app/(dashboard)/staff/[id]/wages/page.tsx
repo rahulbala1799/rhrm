@@ -28,10 +28,6 @@ export default function StaffWagesPage({ params }: { params: { id: string } }) {
         }
         title="No pay rate configured"
         description="Set up hourly rates, salary, or other pay rules for this staff member to enable payroll calculations."
-        action={{
-          label: 'Configure Pay Rate',
-          onClick: () => {},
-        }}
       />
     </div>
   )

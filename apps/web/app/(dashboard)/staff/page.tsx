@@ -44,10 +44,6 @@ export default function StaffPage() {
             }
             title="No staff members yet"
             description="Add your first team member to get started. You can add their details, documents, and availability."
-            action={{
-              label: 'Add First Staff Member',
-              onClick: () => {},
-            }}
           />
         </div>
       </div>

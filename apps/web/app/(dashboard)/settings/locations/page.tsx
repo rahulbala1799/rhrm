@@ -28,10 +28,6 @@ export default function LocationsPage() {
         }
         title="No locations added"
         description="Add your business locations to organize shifts and staff by workplace."
-        action={{
-          label: 'Add First Location',
-          onClick: () => {},
-        }}
       />
     </div>
   )

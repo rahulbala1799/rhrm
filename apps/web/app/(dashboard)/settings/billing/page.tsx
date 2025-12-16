@@ -22,10 +22,6 @@ export default function BillingPage() {
         }
         title="Billing not configured"
         description="Set up your payment method and manage your subscription plan."
-        action={{
-          label: 'Set Up Billing',
-          onClick: () => {},
-        }}
       />
     </div>
   )

@@ -27,10 +27,6 @@ export default function InvitationsPage() {
         }
         title="No invitations sent"
         description="Invite team members by email. They'll receive an invitation to join your organization."
-        action={{
-          label: 'Send First Invitation',
-          onClick: () => {},
-        }}
       />
     </div>
   )

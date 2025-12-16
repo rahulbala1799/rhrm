@@ -22,10 +22,6 @@ export default function CertificationsPage() {
         }
         title="No certifications tracked"
         description="Track safety certifications, food handling licenses, and other required credentials for your staff."
-        action={{
-          label: 'Add Certification',
-          onClick: () => {},
-        }}
       />
     </div>
   )

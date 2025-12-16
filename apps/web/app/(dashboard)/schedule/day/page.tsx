@@ -22,10 +22,6 @@ export default function DayViewPage() {
         }
         title="No shifts scheduled today"
         description="There are no shifts scheduled for today. Create a shift to get started."
-        action={{
-          label: 'Create Shift',
-          onClick: () => {},
-        }}
       />
     </div>
   )

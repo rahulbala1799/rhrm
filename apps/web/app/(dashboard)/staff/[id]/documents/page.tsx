@@ -28,10 +28,6 @@ export default function StaffDocumentsPage({ params }: { params: { id: string } 
         }
         title="No documents uploaded"
         description="Upload right to work documents, certifications, and other required paperwork for this staff member."
-        action={{
-          label: 'Upload First Document',
-          onClick: () => {},
-        }}
       />
     </div>
   )

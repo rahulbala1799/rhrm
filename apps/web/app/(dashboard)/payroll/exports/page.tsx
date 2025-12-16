@@ -22,10 +22,6 @@ export default function PayrollExportsPage() {
         }
         title="No exports yet"
         description="Export payroll data in CSV format for your accounting software or reporting needs."
-        action={{
-          label: 'Export Payroll Data',
-          onClick: () => {},
-        }}
       />
     </div>
   )

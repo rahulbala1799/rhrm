@@ -27,10 +27,6 @@ export default function PayRunsPage() {
         }
         title="No pay runs yet"
         description="Create your first pay run to process payroll for your staff. Pay runs calculate wages based on shifts and pay rates."
-        action={{
-          label: 'Create Pay Run',
-          onClick: () => {},
-        }}
       />
     </div>
   )

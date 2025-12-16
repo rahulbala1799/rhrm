@@ -27,10 +27,6 @@ export default function WeekPlannerPage() {
         }
         title="No schedule created yet"
         description="Start planning your week by creating shifts. You can assign staff, set times, and manage coverage."
-        action={{
-          label: 'Create First Shift',
-          onClick: () => {},
-        }}
       />
     </div>
   )

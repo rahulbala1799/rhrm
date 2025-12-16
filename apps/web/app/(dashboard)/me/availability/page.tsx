@@ -22,10 +22,6 @@ export default function MyAvailabilityPage() {
         }
         title="Availability not set"
         description="Set your preferred working hours and days to help with shift scheduling."
-        action={{
-          label: 'Set Availability',
-          onClick: () => {},
-        }}
       />
     </div>
   )

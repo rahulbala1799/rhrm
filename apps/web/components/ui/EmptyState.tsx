@@ -1,3 +1,5 @@
+'use client'
+
 interface EmptyStateProps {
   icon?: React.ReactNode
   title: string

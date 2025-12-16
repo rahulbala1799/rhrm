@@ -27,10 +27,6 @@ export default function MyDocumentsPage() {
         }
         title="No documents uploaded"
         description="Upload your right to work documents, certifications, and other required paperwork."
-        action={{
-          label: 'Upload Document',
-          onClick: () => {},
-        }}
       />
     </div>
   )

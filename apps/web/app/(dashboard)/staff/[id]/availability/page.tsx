@@ -23,10 +23,6 @@ export default function StaffAvailabilityPage({ params }: { params: { id: string
         }
         title="No availability set"
         description="This staff member hasn't set their availability yet. They can set it themselves or you can configure it for them."
-        action={{
-          label: 'Set Availability',
-          onClick: () => {},
-        }}
       />
     </div>
   )

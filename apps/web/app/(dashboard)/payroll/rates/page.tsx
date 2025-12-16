@@ -27,10 +27,6 @@ export default function PayRatesPage() {
         }
         title="No pay rates configured"
         description="Set up pay rates for different roles and positions. These rates will be used to calculate payroll."
-        action={{
-          label: 'Add First Pay Rate',
-          onClick: () => {},
-        }}
       />
     </div>
   )
