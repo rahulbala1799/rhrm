@@ -45,12 +45,14 @@ export default function SignupForm() {
       setLoading(false)
     } else if (data.user) {
       // Check if email confirmation is required
-      if (data.user.email_confirmed_at) {
-        // Email confirmation disabled - redirect to login
+      if (data.user.email_confirmed_at || data.session) {
+        // Email confirmation disabled or session created - user is logged in
         setSuccess('Account created successfully! Redirecting...')
+        // Refresh to get the session, then redirect
+        router.refresh()
         setTimeout(() => {
-          router.push('/login')
-        }, 2000)
+          router.push('/')
+        }, 1000)
       } else {
         // Email confirmation required
         setSuccess('Check your email to confirm your account!')
