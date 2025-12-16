@@ -2,11 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import LoginForm from './login-form'
 
-export default async function Login({
-  searchParams,
-}: {
-  searchParams: { error?: string }
-}) {
+export default async function Login() {
   const supabase = await createClient()
 
   const {
@@ -36,7 +32,7 @@ export default async function Login({
         </div>
 
         {/* Login Form */}
-        <LoginForm initialError={searchParams?.error} />
+        <LoginForm />
       </div>
     </main>
   )
