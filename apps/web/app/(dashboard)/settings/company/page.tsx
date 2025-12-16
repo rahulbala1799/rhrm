@@ -1,6 +1,103 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
 
+interface Tenant {
+  id: string
+  name: string
+  slug: string
+  settings: any
+}
+
 export default function CompanySettingsPage() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [tenant, setTenant] = useState<Tenant | null>(null)
+  const [formData, setFormData] = useState({
+    name: '',
+    slug: '',
+    businessType: '',
+    country: '',
+  })
+
+  useEffect(() => {
+    fetchTenant()
+  }, [])
+
+  const fetchTenant = async () => {
+    try {
+      const response = await fetch('/api/settings/company')
+      if (!response.ok) throw new Error('Failed to fetch')
+      const { tenant } = await response.json()
+      setTenant(tenant)
+      setFormData({
+        name: tenant.name || '',
+        slug: tenant.slug || '',
+        businessType: tenant.settings?.businessType || '',
+        country: tenant.settings?.country || '',
+      })
+    } catch (error) {
+      console.error('Error fetching tenant:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+
+    try {
+      const response = await fetch('/api/settings/company', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          slug: formData.slug,
+          settings: {
+            businessType: formData.businessType,
+            country: formData.country,
+          },
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to save')
+      }
+
+      const { tenant: updatedTenant } = await response.json()
+      setTenant(updatedTenant)
+      router.refresh()
+      alert('Settings saved successfully!')
+    } catch (error: any) {
+      console.error('Error saving settings:', error)
+      alert(error.message || 'Failed to save settings')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div>
+        <PageHeader
+          title="Company Settings"
+          description="Manage your company information and preferences"
+        />
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+            <div className="h-10 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div>
       <PageHeader
@@ -14,42 +111,54 @@ export default function CompanySettingsPage() {
       />
 
       <div className="bg-white rounded-lg border border-gray-200 p-6 max-w-2xl">
-        <form className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Company Name
+              Company Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
-              defaultValue="Printnpack"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Business URL
+              Business URL <span className="text-red-500">*</span>
             </label>
             <div className="flex items-center gap-2">
               <span className="text-gray-500">yourcompany.com/</span>
               <input
                 type="text"
-                defaultValue="printnpack"
+                value={formData.slug}
+                onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+                required
+                pattern="[a-z0-9-]+"
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
+            <p className="text-xs text-gray-500 mt-1">Lowercase letters, numbers, and hyphens only</p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Business Type
             </label>
-            <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-              <option>Retail</option>
-              <option>Hospitality</option>
-              <option>Construction/Trades</option>
-              <option>Agency/Staffing</option>
-              <option>Healthcare/Care</option>
+            <select
+              value={formData.businessType}
+              onChange={(e) => setFormData({ ...formData, businessType: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Select a type</option>
+              <option value="Retail">Retail</option>
+              <option value="Hospitality">Hospitality</option>
+              <option value="Construction/Trades">Construction/Trades</option>
+              <option value="Agency/Staffing">Agency/Staffing</option>
+              <option value="Healthcare/Care">Healthcare/Care</option>
+              <option value="Other">Other</option>
             </select>
           </div>
 
@@ -57,19 +166,27 @@ export default function CompanySettingsPage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Country
             </label>
-            <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-              <option>IE</option>
-              <option>GB</option>
-              <option>US</option>
+            <select
+              value={formData.country}
+              onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Select a country</option>
+              <option value="GB">United Kingdom</option>
+              <option value="US">United States</option>
+              <option value="CA">Canada</option>
+              <option value="AU">Australia</option>
+              <option value="IE">Ireland</option>
             </select>
           </div>
 
           <div className="flex items-center gap-4 pt-4">
             <button
               type="submit"
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              disabled={saving}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Save Changes
+              {saving ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </form>
@@ -77,4 +194,3 @@ export default function CompanySettingsPage() {
     </div>
   )
 }
-
