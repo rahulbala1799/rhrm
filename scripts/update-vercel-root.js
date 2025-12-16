@@ -7,26 +7,50 @@
 const fs = require('fs');
 const https = require('https');
 
-// Read Vercel auth token
-const authPath = require('os').homedir() + '/.vercel/auth.json';
+// Read Vercel auth token from multiple possible locations
+const os = require('os');
+const path = require('path');
+
+const possibleAuthPaths = [
+  path.join(os.homedir(), '.vercel', 'auth.json'),
+  path.join(os.homedir(), '.config', 'vercel', 'auth.json'),
+];
+
 let token = '';
 
-try {
-  const authData = JSON.parse(fs.readFileSync(authPath, 'utf8'));
-  token = authData.token || authData.tokens?.[0]?.token || '';
-} catch (error) {
-  console.error('Could not read Vercel auth token:', error.message);
-  process.exit(1);
+for (const authPath of possibleAuthPaths) {
+  try {
+    if (fs.existsSync(authPath)) {
+      const authData = JSON.parse(fs.readFileSync(authPath, 'utf8'));
+      token = authData.token || authData.tokens?.[0]?.token || '';
+      if (token) break;
+    }
+  } catch (error) {
+    // Continue to next path
+  }
+}
+
+// If still no token, try to get it from environment or prompt user
+if (!token) {
+  token = process.env.VERCEL_TOKEN || '';
 }
 
 if (!token) {
-  console.error('No token found in auth.json');
+  console.error('❌ Could not find Vercel API token automatically.');
+  console.error('');
+  console.error('Please get your Vercel API token from:');
+  console.error('  https://vercel.com/account/tokens');
+  console.error('');
+  console.error('Then either:');
+  console.error('  1. Set VERCEL_TOKEN environment variable and run this script again');
+  console.error('  2. Or update the root directory in Vercel Dashboard:');
+  console.error('     Settings → General → Root Directory → Set to "apps/web"');
   process.exit(1);
 }
 
-// Project ID
+// Project ID for rhrm project
 const projectId = 'prj_lRicZQVf5y5mpZo3gQyWJHTqi7t0';
-const newRootDirectory = ''; // Empty string means current directory
+const newRootDirectory = 'apps/web'; // Set to apps/web for monorepo
 
 const data = JSON.stringify({
   rootDirectory: newRootDirectory
@@ -53,7 +77,7 @@ const req = https.request(options, (res) => {
 
   res.on('end', () => {
     if (res.statusCode === 200) {
-      console.log('✅ Successfully updated root directory to "." (current directory)');
+      console.log('✅ Successfully updated root directory to "apps/web"');
       console.log('Response:', responseData);
     } else {
       console.error('❌ Error updating root directory');
