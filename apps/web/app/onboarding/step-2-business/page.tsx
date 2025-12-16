@@ -25,6 +25,24 @@ function generateSlug(name: string): string {
     .substring(0, 50)
 }
 
+function sanitizeSlug(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    // Remove http://, https://, www.
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    // Remove domain extensions (.com, .ie, etc.) and everything after the last dot
+    .replace(/\.[a-z]{2,}(\/.*)?$/i, '')
+    // Replace dots, spaces, and other invalid chars with hyphens
+    .replace(/[^a-z0-9-]/g, '-')
+    // Replace multiple hyphens with single hyphen
+    .replace(/-+/g, '-')
+    // Remove leading/trailing hyphens
+    .replace(/^-+|-+$/g, '')
+    .substring(0, 50)
+}
+
 export default function Step2BusinessPage() {
   const router = useRouter()
   const { progress, sessionId, saveProgress, initializeSession } = useOnboardingProgress()
@@ -150,7 +168,11 @@ export default function Step2BusinessPage() {
               <input
                 type="text"
                 value={slug}
-                onChange={(e) => setSlug(e.target.value)}
+                onChange={(e) => {
+                  const sanitized = sanitizeSlug(e.target.value)
+                  setSlug(sanitized)
+                  setSlugAvailable(null)
+                }}
                 onBlur={handleSlugBlur}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 placeholder="acme-inc"

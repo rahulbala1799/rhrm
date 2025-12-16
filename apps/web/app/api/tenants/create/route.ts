@@ -57,13 +57,32 @@ export async function POST(request: Request) {
     )
   }
 
-  // Validate slug format
-  if (!/^[a-z0-9-]+$/.test(slug)) {
+  // Sanitize and validate slug format
+  const sanitizedSlug = slug
+    .toLowerCase()
+    .trim()
+    // Remove http://, https://, www.
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    // Remove domain extensions (.com, .ie, etc.) and everything after the last dot
+    .replace(/\.[a-z]{2,}(\/.*)?$/i, '')
+    // Replace dots, spaces, and other invalid chars with hyphens
+    .replace(/[^a-z0-9-]/g, '-')
+    // Replace multiple hyphens with single hyphen
+    .replace(/-+/g, '-')
+    // Remove leading/trailing hyphens
+    .replace(/^-+|-+$/g, '')
+    .substring(0, 50)
+
+  if (!sanitizedSlug || !/^[a-z0-9-]+$/.test(sanitizedSlug)) {
     return NextResponse.json(
-      { error: 'slug must be lowercase alphanumeric with hyphens only' },
+      { error: 'slug must be lowercase alphanumeric with hyphens only. Please enter a valid business identifier (e.g., "printnpack" instead of "www.printnpack.ie")' },
       { status: 400 }
     )
   }
+
+  // Use sanitized slug
+  const finalSlug = sanitizedSlug
 
   // Use service role client for atomic tenant + membership creation
   const serviceClient = createServiceClient(
@@ -171,7 +190,7 @@ export async function POST(request: Request) {
   const { data: existingTenantBySlug } = await serviceClient
     .from('tenants')
     .select('id')
-    .eq('slug', slug)
+    .eq('slug', finalSlug)
     .single()
 
   if (existingTenantBySlug) {
@@ -203,7 +222,7 @@ export async function POST(request: Request) {
     'create_tenant_with_admin',
     {
       p_tenant_name: name,
-      p_tenant_slug: slug,
+      p_tenant_slug: finalSlug,
       p_admin_user_id: user.id,
     }
   )
@@ -307,7 +326,7 @@ export async function POST(request: Request) {
     resource_id: result.tenant_id,
     changes: {
       name,
-      slug,
+      slug: finalSlug,
       created_by: user.id,
       onboarding_completed: true,
     },
@@ -319,7 +338,7 @@ export async function POST(request: Request) {
     tenant: {
       id: result.tenant_id,
       name,
-      slug,
+      slug: finalSlug,
     },
     membership: {
       id: result.membership_id,
