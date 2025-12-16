@@ -5,10 +5,10 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-export default function LoginForm() {
+export default function LoginForm({ initialError }: { initialError?: string }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(initialError || null)
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
@@ -35,10 +35,15 @@ export default function LoginForm() {
         }
         setError(errorMessage)
         setLoading(false)
+      } else if (data?.user && data?.session) {
+        // Successful login - wait a moment for session to be set, then redirect
+        setLoading(false)
+        // Use window.location for a hard redirect to ensure session is recognized
+        window.location.href = '/'
       } else if (data?.user) {
-        // Successful login - redirect to home
-        router.push('/')
-        router.refresh()
+        // User exists but no session - might need email confirmation
+        setError('Please check your email to confirm your account before signing in.')
+        setLoading(false)
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.')
