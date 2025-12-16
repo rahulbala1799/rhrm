@@ -86,6 +86,27 @@ export default function InvitationsPage() {
     }
   }
 
+  const handleRevoke = async (id: string) => {
+    if (!confirm('Are you sure you want to revoke this invitation?')) return
+
+    try {
+      const response = await fetch(`/api/settings/invitations/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to revoke')
+      }
+
+      fetchInvitations()
+      alert('Invitation revoked successfully!')
+    } catch (error: any) {
+      console.error('Error revoking invitation:', error)
+      alert(error.message || 'Failed to revoke invitation')
+    }
+  }
+
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
       case 'pending':
@@ -176,6 +197,7 @@ export default function InvitationsPage() {
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Expires</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Invited By</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Sent</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -200,6 +222,19 @@ export default function InvitationsPage() {
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-700">
                     {new Date(invitation.created_at).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    {invitation.status === 'pending' && (
+                      <button
+                        onClick={() => handleRevoke(invitation.id)}
+                        className="text-red-600 hover:text-red-700 font-medium text-sm"
+                      >
+                        Revoke
+                      </button>
+                    )}
+                    {invitation.status !== 'pending' && (
+                      <span className="text-gray-400 text-sm">—</span>
+                    )}
                   </td>
                 </tr>
               ))}

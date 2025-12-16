@@ -23,6 +23,13 @@ interface Member {
 export default function PermissionsPage() {
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
+  const [editingMember, setEditingMember] = useState<Member | null>(null)
+  const [showModal, setShowModal] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [formData, setFormData] = useState({
+    role: 'staff',
+    status: 'active',
+  })
 
   useEffect(() => {
     fetchMembers()
@@ -38,6 +45,50 @@ export default function PermissionsPage() {
       console.error('Error fetching members:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleEdit = (member: Member) => {
+    setEditingMember(member)
+    setFormData({
+      role: member.role,
+      status: member.status,
+    })
+    setShowModal(true)
+  }
+
+  const handleCloseModal = () => {
+    setShowModal(false)
+    setEditingMember(null)
+    setFormData({ role: 'staff', status: 'active' })
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingMember) return
+
+    setSaving(true)
+
+    try {
+      const response = await fetch(`/api/settings/permissions/${editingMember.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to update')
+      }
+
+      handleCloseModal()
+      fetchMembers()
+      alert('Member updated successfully!')
+    } catch (error: any) {
+      console.error('Error updating member:', error)
+      alert(error.message || 'Failed to update member')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -164,7 +215,10 @@ export default function PermissionsPage() {
                       : '—'}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button className="text-blue-600 hover:text-blue-700 font-medium text-sm">
+                    <button
+                      onClick={() => handleEdit(member)}
+                      className="text-blue-600 hover:text-blue-700 font-medium text-sm"
+                    >
                       Edit
                     </button>
                   </td>
@@ -172,6 +226,79 @@ export default function PermissionsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showModal && editingMember && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Edit Member</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              {editingMember.profiles?.full_name || editingMember.profiles?.email}
+            </p>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Role <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={editingMember.role === 'superadmin'}
+                >
+                  <option value="staff">Staff</option>
+                  <option value="manager">Manager</option>
+                  <option value="admin">Admin</option>
+                  {editingMember.role === 'superadmin' && (
+                    <option value="superadmin">Superadmin</option>
+                  )}
+                </select>
+                {editingMember.role === 'superadmin' && (
+                  <p className="text-xs text-gray-500 mt-1">Superadmin role cannot be changed</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Status <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={editingMember.status === 'invited'}
+                >
+                  <option value="active">Active</option>
+                  <option value="suspended">Suspended</option>
+                  {editingMember.status === 'invited' && (
+                    <option value="invited">Invited</option>
+                  )}
+                </select>
+                {editingMember.status === 'invited' && (
+                  <p className="text-xs text-gray-500 mt-1">Invited members must accept invitation first</p>
+                )}
+              </div>
+              <div className="flex items-center gap-4 pt-4">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
