@@ -13,7 +13,10 @@ interface Invitation {
   tenants: {
     name: string
     slug: string
-  } | null
+  } | null | {
+    name: string
+    slug: string
+  }[]
 }
 
 interface Props {
@@ -127,7 +130,11 @@ export default function InviteAcceptancePage({ invitation, token }: Props) {
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">You're Invited!</h1>
           <p className="text-gray-600">
-            Join <span className="font-semibold text-gray-900">{invitation.tenants?.name || 'the team'}</span> as{' '}
+            Join <span className="font-semibold text-gray-900">
+              {Array.isArray(invitation.tenants) 
+                ? invitation.tenants[0]?.name || 'the team'
+                : invitation.tenants?.name || 'the team'}
+            </span> as{' '}
             <span className="font-semibold text-gray-900 capitalize">{invitation.role}</span>
           </p>
         </div>
@@ -223,7 +230,10 @@ export default function InviteAcceptancePage({ invitation, token }: Props) {
 
         <div className="mt-6 text-center">
           <p className="text-xs text-gray-500">
-            By continuing, you agree to join {invitation.tenants?.name || 'the organization'}
+            By continuing, you agree to join{' '}
+            {Array.isArray(invitation.tenants) 
+              ? invitation.tenants[0]?.name || 'the organization'
+              : invitation.tenants?.name || 'the organization'}
           </p>
         </div>
       </div>

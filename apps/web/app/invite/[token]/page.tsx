@@ -42,7 +42,7 @@ export default async function InvitePage({ params }: PageProps) {
   // Fetch invitation details (public info only)
   const { data: invitation, error } = await supabase
     .from('invitations')
-    .select('id, email, role, status, expires_at, tenants(name, slug)')
+    .select('id, email, role, status, expires_at, tenants!inner(name, slug)')
     .eq('token', params.token)
     .single()
 
