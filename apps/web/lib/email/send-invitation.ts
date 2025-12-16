@@ -1,0 +1,177 @@
+/**
+ * Send invitation email
+ * Supports multiple email providers: Resend (recommended) or SendGrid
+ */
+
+interface SendInvitationEmailParams {
+  to: string
+  invitationUrl: string
+  inviterName: string
+  companyName: string
+  role: string
+}
+
+export async function sendInvitationEmail({
+  to,
+  invitationUrl,
+  inviterName,
+  companyName,
+  role,
+}: SendInvitationEmailParams): Promise<{ success: boolean; error?: string }> {
+  // Try Resend first (recommended for Next.js)
+  if (process.env.RESEND_API_KEY) {
+    return sendViaResend({ to, invitationUrl, inviterName, companyName, role })
+  }
+
+  // Fallback to SendGrid
+  if (process.env.SENDGRID_API_KEY) {
+    return sendViaSendGrid({ to, invitationUrl, inviterName, companyName, role })
+  }
+
+  // Fallback to Supabase Auth email (limited customization)
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return sendViaSupabase({ to, invitationUrl, inviterName, companyName, role })
+  }
+
+  return {
+    success: false,
+    error: 'No email service configured. Please set RESEND_API_KEY, SENDGRID_API_KEY, or configure Supabase email.',
+  }
+}
+
+async function sendViaResend({
+  to,
+  invitationUrl,
+  inviterName,
+  companyName,
+  role,
+}: SendInvitationEmailParams) {
+  try {
+    const resend = await import('resend')
+    const client = new resend.Resend(process.env.RESEND_API_KEY)
+
+    const { data, error } = await client.emails.send({
+      from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+      to: [to],
+      subject: `You're invited to join ${companyName}`,
+      html: getEmailTemplate({ invitationUrl, inviterName, companyName, role }),
+    })
+
+    if (error) {
+      console.error('Resend error:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (err: any) {
+    console.error('Error sending via Resend:', err)
+    return { success: false, error: err.message }
+  }
+}
+
+async function sendViaSendGrid({
+  to,
+  invitationUrl,
+  inviterName,
+  companyName,
+  role,
+}: SendInvitationEmailParams) {
+  try {
+    const sgMail = await import('@sendgrid/mail')
+    sgMail.default.setApiKey(process.env.SENDGRID_API_KEY!)
+
+    const msg = {
+      to,
+      from: process.env.SENDGRID_FROM_EMAIL || 'noreply@example.com',
+      subject: `You're invited to join ${companyName}`,
+      html: getEmailTemplate({ invitationUrl, inviterName, companyName, role }),
+    }
+
+    await sgMail.default.send(msg)
+    return { success: true }
+  } catch (err: any) {
+    console.error('Error sending via SendGrid:', err)
+    return { success: false, error: err.message }
+  }
+}
+
+async function sendViaSupabase({
+  to,
+  invitationUrl,
+  inviterName,
+  companyName,
+  role,
+}: SendInvitationEmailParams) {
+  // Note: Supabase's built-in email is mainly for auth flows
+  // This is a fallback - you should use Resend or SendGrid for better control
+  console.warn('Using Supabase email fallback - consider setting up Resend or SendGrid')
+  
+  // You could use Supabase's admin API to send emails, but it's limited
+  // For now, just log that we would send it
+  console.log('Would send invitation email:', { to, invitationUrl })
+  
+  return {
+    success: false,
+    error: 'Supabase email not fully implemented. Please configure Resend or SendGrid.',
+  }
+}
+
+function getEmailTemplate({
+  invitationUrl,
+  inviterName,
+  companyName,
+  role,
+}: Omit<SendInvitationEmailParams, 'to'>): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You're Invited!</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <h1 style="color: white; margin: 0; font-size: 28px;">You're Invited!</h1>
+  </div>
+  
+  <div style="background: white; padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+    <p style="font-size: 16px; margin-bottom: 20px;">
+      Hi there,
+    </p>
+    
+    <p style="font-size: 16px; margin-bottom: 20px;">
+      <strong>${inviterName}</strong> has invited you to join <strong>${companyName}</strong> as a <strong>${role}</strong>.
+    </p>
+    
+    <p style="font-size: 16px; margin-bottom: 30px;">
+      Click the button below to accept your invitation and get started:
+    </p>
+    
+    <div style="text-align: center; margin: 40px 0;">
+      <a href="${invitationUrl}" 
+         style="display: inline-block; background: #2563eb; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+        Accept Invitation
+      </a>
+    </div>
+    
+    <p style="font-size: 14px; color: #6b7280; margin-top: 30px; margin-bottom: 10px;">
+      Or copy and paste this link into your browser:
+    </p>
+    <p style="font-size: 12px; color: #9ca3af; word-break: break-all; background: #f9fafb; padding: 12px; border-radius: 4px; margin: 0;">
+      ${invitationUrl}
+    </p>
+    
+    <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
+      This invitation will expire in 7 days.
+    </p>
+    
+    <p style="font-size: 14px; color: #6b7280; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+      If you didn't expect this invitation, you can safely ignore this email.
+    </p>
+  </div>
+</body>
+</html>
+  `.trim()
+}
+

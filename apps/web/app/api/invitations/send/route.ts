@@ -65,14 +65,43 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  // TODO: Send email with invitation link
-  // For now, return the token (in production, send via email service)
+  // Get inviter and tenant info for email
+  const { data: inviterProfile } = await supabase
+    .from('profiles')
+    .select('full_name')
+    .eq('id', user.id)
+    .single()
+
+  const { data: tenant } = await supabase
+    .from('tenants')
+    .select('name')
+    .eq('id', tenantId)
+    .single()
+
   const invitationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${token}`
+
+  // Send invitation email
+  const { sendInvitationEmail } = await import('@/lib/email/send-invitation')
+  const emailResult = await sendInvitationEmail({
+    to: email,
+    invitationUrl,
+    inviterName: inviterProfile?.full_name || 'A team member',
+    companyName: tenant?.name || 'the organization',
+    role: role.charAt(0).toUpperCase() + role.slice(1),
+  })
+
+  if (!emailResult.success) {
+    // Log error but don't fail the invitation creation
+    // The invitation is still created and the URL is returned
+    console.error('Failed to send invitation email:', emailResult.error)
+  }
 
   return NextResponse.json({
     success: true,
     invitation,
-    invitationUrl, // Remove in production, send via email
+    invitationUrl, // Still return for debugging/admin use
+    emailSent: emailResult.success,
+    emailError: emailResult.error,
   })
 }
 
