@@ -26,10 +26,10 @@ export async function PUT(
 
   const supabase = await createClient()
 
-  // Verify location belongs to tenant
+  // Verify location belongs to tenant and get existing settings
   const { data: existing } = await supabase
     .from('locations')
-    .select('id, tenant_id')
+    .select('id, tenant_id, settings')
     .eq('id', params.id)
     .eq('tenant_id', tenantId)
     .single()
@@ -45,7 +45,8 @@ export async function PUT(
   if (phone !== undefined) updates.phone = phone
   if (settings !== undefined) {
     // Merge with existing settings
-    updates.settings = { ...(existing.settings || {}), ...settings }
+    const existingSettings = (existing.settings as any) || {}
+    updates.settings = { ...existingSettings, ...settings }
   }
 
   const { data: location, error } = await supabase
