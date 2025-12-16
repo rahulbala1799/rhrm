@@ -31,6 +31,7 @@ const navSections: NavSection[] = [
     title: 'People',
     items: [
       { label: 'Staff List', href: '/staff', icon: <PeopleIcon /> },
+      { label: 'Invite Staff', href: '/settings/invitations', icon: <InviteIcon /> },
       { label: 'Add Staff', href: '/staff/new', icon: <AddPersonIcon /> },
     ],
   },
