@@ -27,10 +27,12 @@ Resend is modern, developer-friendly, and works great with Next.js.
 4. **Add environment variables**:
    Add to `apps/web/.env.local`:
    ```bash
-   RESEND_API_KEY=re_xxxxxxxxxxxxx
+   RESEND_API_KEY=re_PDvHa7Qf_FoqpCS9SQJkumryjCZ5chCN4
    RESEND_FROM_EMAIL=noreply@yourdomain.com
    # Or for testing: onboarding@resend.dev
    ```
+   
+   **Note**: The API key is already saved in `.env.local` and `.env.vercel` (both are gitignored for security).
 
 5. **For Vercel deployment**:
    Add the same variables in Vercel Dashboard > Settings > Environment Variables
