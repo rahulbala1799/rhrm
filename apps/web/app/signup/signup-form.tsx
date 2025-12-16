@@ -32,11 +32,14 @@ export default function SignupForm() {
 
     setLoading(true)
 
+    // Use production URL from env, fallback to current origin
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+    
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${appUrl}/auth/callback`,
       },
     })
 
