@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import StaffOnboardingLayout from '../layout'
+import { StaffOnboardingLayout } from '../components/StaffOnboardingLayout'
 
 export default function StaffWelcomePage() {
   const router = useRouter()
