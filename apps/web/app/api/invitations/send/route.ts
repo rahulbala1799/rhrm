@@ -78,7 +78,9 @@ export async function POST(request: Request) {
     .eq('id', tenantId)
     .single()
 
-  const invitationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${token}`
+  // Get app URL with fallback
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rhrm.vercel.app'
+  const invitationUrl = `${appUrl}/invite/${token}`
 
   // Send invitation email
   const { sendInvitationEmail } = await import('@/lib/email/send-invitation')
