@@ -1,6 +1,6 @@
 /**
  * Send invitation email
- * Supports multiple email providers: Resend (recommended) or SendGrid
+ * Supports multiple email providers: Resend, SendGrid, Mailgun, or Nodemailer (SMTP)
  */
 
 interface SendInvitationEmailParams {
@@ -22,6 +22,7 @@ export async function sendInvitationEmail({
   console.log('Environment check:', {
     hasResendKey: !!process.env.RESEND_API_KEY,
     hasSendGridKey: !!process.env.SENDGRID_API_KEY,
+    hasMailgunKey: !!process.env.MAILGUN_API_KEY,
     hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
   })
 
@@ -35,12 +36,17 @@ export async function sendInvitationEmail({
     return sendViaSendGrid({ to, invitationUrl, inviterName, companyName, role })
   }
 
+  // Fallback to Mailgun (reliable API-based service)
+  if (process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN) {
+    return sendViaMailgun({ to, invitationUrl, inviterName, companyName, role })
+  }
+
   // Fallback to Supabase Auth email (limited customization)
   if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return sendViaSupabase({ to, invitationUrl, inviterName, companyName, role })
   }
 
-  const errorMsg = 'No email service configured. Please set RESEND_API_KEY, SENDGRID_API_KEY, or configure Supabase email.'
+  const errorMsg = 'No email service configured. Please set RESEND_API_KEY, SENDGRID_API_KEY, or MAILGUN_API_KEY with MAILGUN_DOMAIN.'
   console.error(errorMsg)
   return {
     success: false,
@@ -112,6 +118,60 @@ async function sendViaSendGrid({
   } catch (err: any) {
     console.error('Error sending via SendGrid:', err)
     return { success: false, error: err.message }
+  }
+}
+
+async function sendViaMailgun({
+  to,
+  invitationUrl,
+  inviterName,
+  companyName,
+  role,
+}: SendInvitationEmailParams) {
+  try {
+    const apiKey = process.env.MAILGUN_API_KEY
+    const domain = process.env.MAILGUN_DOMAIN
+    
+    if (!apiKey || !domain) {
+      console.error('MAILGUN_API_KEY or MAILGUN_DOMAIN is not set')
+      return { success: false, error: 'MAILGUN_API_KEY and MAILGUN_DOMAIN environment variables are required' }
+    }
+
+    const fromEmail = process.env.MAILGUN_FROM_EMAIL || `noreply@${domain}`
+    
+    console.log('Sending email via Mailgun:', { to, from: fromEmail, domain })
+
+    // Mailgun API endpoint
+    const mailgunUrl = process.env.MAILGUN_API_URL || 'https://api.mailgun.net/v3'
+    const endpoint = `${mailgunUrl}/${domain}/messages`
+
+    const formData = new URLSearchParams()
+    formData.append('from', fromEmail)
+    formData.append('to', to)
+    formData.append('subject', `You're invited to join ${companyName}`)
+    formData.append('html', getEmailTemplate({ invitationUrl, inviterName, companyName, role }))
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${Buffer.from(`api:${apiKey}`).toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formData.toString(),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      console.error('Mailgun API error:', data)
+      return { success: false, error: `Mailgun error: ${data.message || JSON.stringify(data)}` }
+    }
+
+    console.log('Email sent successfully via Mailgun:', data)
+    return { success: true }
+  } catch (err: any) {
+    console.error('Error sending via Mailgun:', err)
+    return { success: false, error: `Failed to send email: ${err.message || String(err)}` }
   }
 }
 

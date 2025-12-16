@@ -1,6 +1,6 @@
 # Email Setup for Invitations
 
-To send real invitation emails, you need to configure an email service. We support **Resend** (recommended) or **SendGrid**.
+To send real invitation emails, you need to configure an email service. We support **Resend**, **SendGrid**, or **Mailgun**.
 
 ## Option 1: Resend (Recommended for Next.js)
 
@@ -37,7 +37,44 @@ Resend is modern, developer-friendly, and works great with Next.js.
 5. **For Vercel deployment**:
    Add the same variables in Vercel Dashboard > Settings > Environment Variables
 
-## Option 2: SendGrid
+## Option 2: Mailgun (Recommended Alternative)
+
+Mailgun is a reliable email API service with a generous free tier (5,000 emails/month for first 3 months, then 1,000/month free).
+
+### Setup Steps:
+
+1. **Sign up for Mailgun** (free tier available):
+   - Go to https://www.mailgun.com
+   - Sign up for an account
+   - Verify your email address
+
+2. **Add and verify a domain**:
+   - Go to Sending > Domains
+   - Add your domain (or use their sandbox domain for testing)
+   - Add the DNS records they provide to verify your domain
+   - For testing, you can use their sandbox domain (e.g., `sandbox12345.mailgun.org`)
+
+3. **Get your API key**:
+   - Go to Settings > API Keys
+   - Copy your Private API key (starts with a long string)
+
+4. **Add environment variables**:
+   Add to `apps/web/.env.local`:
+   ```bash
+   MAILGUN_API_KEY=your_private_api_key_here
+   MAILGUN_DOMAIN=your-domain.com
+   # Or for testing: sandbox12345.mailgun.org
+   MAILGUN_FROM_EMAIL=noreply@your-domain.com
+   # Optional: Custom API URL (defaults to https://api.mailgun.net/v3)
+   # MAILGUN_API_URL=https://api.mailgun.net/v3
+   ```
+   
+   **Note**: Never commit your actual API key to git. The `.env.local` and `.env.vercel` files are gitignored for security.
+
+5. **For Vercel deployment**:
+   Add the same variables in Vercel Dashboard > Settings > Environment Variables
+
+## Option 3: SendGrid
 
 If you prefer SendGrid (you may already have it set up):
 
@@ -94,7 +131,7 @@ You can customize the template in `apps/web/lib/email/send-invitation.ts` in the
 ### Emails not sending?
 
 1. **Check environment variables**:
-   - Make sure `RESEND_API_KEY` or `SENDGRID_API_KEY` is set
+   - Make sure `RESEND_API_KEY`, `SENDGRID_API_KEY`, or `MAILGUN_API_KEY` with `MAILGUN_DOMAIN` is set
    - Check Vercel environment variables if deployed
 
 2. **Check logs**:
@@ -104,6 +141,7 @@ You can customize the template in `apps/web/lib/email/send-invitation.ts` in the
 3. **Verify sender email**:
    - Make sure your "from" email is verified in your email service
    - For Resend: Verify domain or use `onboarding@resend.dev` for testing
+   - For Mailgun: Verify domain or use sandbox domain for testing
    - For SendGrid: Verify sender identity
 
 4. **Check spam folder**:
