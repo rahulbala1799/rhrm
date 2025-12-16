@@ -1,11 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Enable SWC minification (default in Next.js 14+)
   swcMinify: true,
-  // Image optimization
   images: {
     domains: [],
+  },
+  // Fix for Supabase ESM imports
+  experimental: {
+    esmExternals: 'loose',
   },
 }
 

@@ -69,15 +69,6 @@ export async function GET(request: Request) {
   }
 
   // Service client already created above for platform_admins check
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    }
-  )
 
   // Fetch data (bypasses RLS via service role)
   let data
@@ -176,17 +167,7 @@ export async function POST(request: Request) {
   }
 
   // Verify target user has membership in tenant
-  const serviceClient = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    }
-  )
-
+  // Service client already created above for platform_admins check
   const { data: targetMembership } = await serviceClient
     .from('memberships')
     .select('id')
