@@ -127,20 +127,19 @@ export default function CompanySettingsPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Business URL <span className="text-red-500">*</span>
+              Account Identifier <span className="text-red-500">*</span>
             </label>
-            <div className="flex items-center gap-2">
-              <span className="text-gray-500">yourcompany.com/</span>
-              <input
-                type="text"
-                value={formData.slug}
-                onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
-                required
-                pattern="[a-z0-9-]+"
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <p className="text-xs text-gray-500 mt-1">Lowercase letters, numbers, and hyphens only</p>
+            <input
+              type="text"
+              value={formData.slug}
+              onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+              required
+              pattern="[a-z0-9-]+"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              A unique identifier for your account. Lowercase letters, numbers, and hyphens only.
+            </p>
           </div>
 
           <div>

@@ -161,31 +161,31 @@ export default function Step2BusinessPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Business URL <span className="text-red-500">*</span>
+              Account Identifier <span className="text-red-500">*</span>
             </label>
-            <div className="flex items-center gap-2">
-              <span className="text-gray-500">yourcompany.com/</span>
-              <input
-                type="text"
-                value={slug}
-                onChange={(e) => {
-                  const sanitized = sanitizeSlug(e.target.value)
-                  setSlug(sanitized)
-                  setSlugAvailable(null)
-                }}
-                onBlur={handleSlugBlur}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                placeholder="acme-inc"
-              />
-            </div>
+            <input
+              type="text"
+              value={slug}
+              onChange={(e) => {
+                const sanitized = sanitizeSlug(e.target.value)
+                setSlug(sanitized)
+                setSlugAvailable(null)
+              }}
+              onBlur={handleSlugBlur}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              placeholder="printnpack"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              A unique identifier for your account. Lowercase letters, numbers, and hyphens only.
+            </p>
             {checkingSlug && (
               <p className="text-sm text-gray-500 mt-1">Checking availability...</p>
             )}
             {slugAvailable === false && (
-              <p className="text-sm text-red-600 mt-1">This URL is already taken. Please choose another.</p>
+              <p className="text-sm text-red-600 mt-1">This identifier is already taken. Please choose another.</p>
             )}
             {slugAvailable === true && (
-              <p className="text-sm text-green-600 mt-1">This URL is available!</p>
+              <p className="text-sm text-green-600 mt-1">This identifier is available!</p>
             )}
           </div>
 
