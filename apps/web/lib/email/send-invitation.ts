@@ -18,6 +18,13 @@ export async function sendInvitationEmail({
   companyName,
   role,
 }: SendInvitationEmailParams): Promise<{ success: boolean; error?: string }> {
+  console.log('Attempting to send invitation email:', { to, companyName, role })
+  console.log('Environment check:', {
+    hasResendKey: !!process.env.RESEND_API_KEY,
+    hasSendGridKey: !!process.env.SENDGRID_API_KEY,
+    hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+  })
+
   // Try Resend first (recommended for Next.js)
   if (process.env.RESEND_API_KEY) {
     return sendViaResend({ to, invitationUrl, inviterName, companyName, role })
@@ -33,9 +40,11 @@ export async function sendInvitationEmail({
     return sendViaSupabase({ to, invitationUrl, inviterName, companyName, role })
   }
 
+  const errorMsg = 'No email service configured. Please set RESEND_API_KEY, SENDGRID_API_KEY, or configure Supabase email.'
+  console.error(errorMsg)
   return {
     success: false,
-    error: 'No email service configured. Please set RESEND_API_KEY, SENDGRID_API_KEY, or configure Supabase email.',
+    error: errorMsg,
   }
 }
 
@@ -47,25 +56,36 @@ async function sendViaResend({
   role,
 }: SendInvitationEmailParams) {
   try {
+    const apiKey = process.env.RESEND_API_KEY
+    if (!apiKey) {
+      console.error('RESEND_API_KEY is not set')
+      return { success: false, error: 'RESEND_API_KEY environment variable is not configured' }
+    }
+
     const resend = await import('resend')
-    const client = new resend.Resend(process.env.RESEND_API_KEY)
+    const client = new resend.Resend(apiKey)
+
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
+    
+    console.log('Sending email via Resend:', { to, from: fromEmail, hasApiKey: !!apiKey })
 
     const { data, error } = await client.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+      from: fromEmail,
       to: [to],
       subject: `You're invited to join ${companyName}`,
       html: getEmailTemplate({ invitationUrl, inviterName, companyName, role }),
     })
 
     if (error) {
-      console.error('Resend error:', error)
-      return { success: false, error: error.message }
+      console.error('Resend API error:', error)
+      return { success: false, error: `Resend error: ${error.message || JSON.stringify(error)}` }
     }
 
+    console.log('Email sent successfully via Resend:', data)
     return { success: true }
   } catch (err: any) {
     console.error('Error sending via Resend:', err)
-    return { success: false, error: err.message }
+    return { success: false, error: `Failed to send email: ${err.message || String(err)}` }
   }
 }
 

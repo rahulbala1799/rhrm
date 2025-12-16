@@ -74,10 +74,19 @@ export default function InvitationsPage() {
       }
 
       const result = await response.json()
-      setShowModal(false)
-      setFormData({ email: '', role: 'staff' })
+      
+      if (!result.emailSent) {
+        // Invitation was created but email failed
+        const errorMsg = result.emailError || 'Email service not configured'
+        alert(`Invitation created but email failed to send:\n${errorMsg}\n\nYou can manually share this invitation URL:\n${result.invitationUrl || 'N/A'}`)
+        console.error('Email sending failed:', result.emailError)
+      } else {
+        setShowModal(false)
+        setFormData({ email: '', role: 'staff' })
+        alert(`Invitation sent successfully to ${formData.email}!`)
+      }
+      
       fetchInvitations()
-      alert(`Invitation sent to ${formData.email}!${result.invitationUrl ? `\n\nInvitation URL: ${result.invitationUrl}` : ''}`)
     } catch (error: any) {
       console.error('Error sending invitation:', error)
       alert(error.message || 'Failed to send invitation')
