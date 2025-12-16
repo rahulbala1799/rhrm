@@ -79,12 +79,11 @@ export default function RolesPage() {
             title={role.name}
             description={role.description}
           >
-            <div className="mt-4">
-              <div className="mb-3">
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${role.color}`}>
-                  {role.name}
-                </span>
-              </div>
+            <div className="mb-3">
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${role.color}`}>
+                {role.name}
+              </span>
+            </div>
             <div className="mt-4">
               <h4 className="text-sm font-semibold text-gray-900 mb-3">Permissions:</h4>
               <ul className="space-y-2">
