@@ -21,7 +21,7 @@ export default async function Home() {
     // NOTE: Only select onboarding_progress for own profile (WHERE id = auth.uid())
     const { data: profile } = await supabase
       .from('profiles')
-      .select('onboarding_progress, onboarding_in_progress, onboarding_expires_at')
+      .select('onboarding_progress, onboarding_in_progress, onboarding_expires_at, staff_onboarding_completed')
       .eq('id', user.id) // CRITICAL: Self-only query
       .single()
 
@@ -60,7 +60,28 @@ export default async function Home() {
     }
   }
 
-  // User has tenant - redirect to dashboard
+  // User has tenant - check if staff onboarding is needed
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('staff_onboarding_completed')
+    .eq('id', user.id)
+    .single()
+
+  // Check if user has active membership but hasn't completed staff onboarding
+  const { data: activeMembership } = await supabase
+    .from('memberships')
+    .select('id, joined_at')
+    .eq('user_id', user.id)
+    .eq('status', 'active')
+    .limit(1)
+    .single()
+
+  // If user has active membership but hasn't completed staff onboarding, redirect
+  if (activeMembership && !profile?.staff_onboarding_completed) {
+    redirect('/staff-onboarding/welcome')
+  }
+
+  // User has tenant and completed onboarding - redirect to dashboard
   redirect('/dashboard')
 }
 
