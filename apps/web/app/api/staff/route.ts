@@ -16,6 +16,26 @@ export async function GET(request: Request) {
   const supabase = await createClient()
   const { searchParams } = new URL(request.url)
   
+  // Check if this is for manager dropdown
+  const forManagerDropdown = searchParams.get('for_manager_dropdown') === 'true'
+  
+  // If for manager dropdown, return minimal fields
+  if (forManagerDropdown) {
+    const { data: staff, error } = await supabase
+      .from('staff')
+      .select('id, employee_number, first_name, last_name, job_title')
+      .eq('tenant_id', tenantId)
+      .eq('status', 'active')
+      .order('first_name', { ascending: true })
+    
+    if (error) {
+      console.error('Error fetching staff for manager dropdown:', error)
+      return NextResponse.json({ error: 'Failed to fetch staff' }, { status: 500 })
+    }
+    
+    return NextResponse.json({ staff: staff || [] })
+  }
+  
   // Validate and sanitize search
   const search = searchParams.get('search')?.trim() || null
   
