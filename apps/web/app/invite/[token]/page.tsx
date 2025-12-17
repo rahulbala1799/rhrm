@@ -9,9 +9,13 @@ interface PageProps {
 export default async function InvitePage({ params }: PageProps) {
   const supabase = await createClient()
 
+  console.log('[INVITE PAGE] Loading invitation for token:', params.token)
+
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  console.log('[INVITE PAGE] User logged in:', !!user)
 
   // If user is logged in and has tenant, check if they need staff onboarding
   if (user) {
@@ -40,21 +44,40 @@ export default async function InvitePage({ params }: PageProps) {
   }
 
   // Fetch invitation details (public info only)
+  console.log('[INVITE PAGE] Querying invitation...')
   const { data: invitation, error } = await supabase
     .from('invitations')
     .select('id, email, role, status, expires_at, tenants!inner(name, slug)')
     .eq('token', params.token)
     .single()
 
+  console.log('[INVITE PAGE] Query result:', { 
+    found: !!invitation, 
+    error: error?.message, 
+    errorCode: error?.code,
+    errorDetails: error?.details,
+    errorHint: error?.hint
+  })
+
   if (error || !invitation) {
+    console.error('[INVITE PAGE] Invitation not found or error:', error)
     redirect('/invite/invalid')
   }
 
+  console.log('[INVITE PAGE] Invitation found:', { 
+    id: invitation.id, 
+    email: invitation.email, 
+    status: invitation.status,
+    expires_at: invitation.expires_at
+  })
+
   if (invitation.status !== 'pending') {
+    console.log('[INVITE PAGE] Invitation not pending, redirecting to expired')
     redirect(`/invite/${params.token}/expired`)
   }
 
   if (new Date(invitation.expires_at) < new Date()) {
+    console.log('[INVITE PAGE] Invitation expired')
     redirect(`/invite/${params.token}/expired`)
   }
 
