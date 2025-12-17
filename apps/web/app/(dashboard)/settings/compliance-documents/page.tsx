@@ -117,24 +117,47 @@ export default function ComplianceSettingsPage() {
       />
 
       {/* Country Tabs */}
-      <div className="mb-6 border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          {(['UK', 'IE', 'US'] as CountryCode[]).map((country) => (
-            <button
-              key={country}
-              onClick={() => setSelectedCountry(country)}
-              className={`
-                py-4 px-1 border-b-2 font-medium text-sm
-                ${selectedCountry === country
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }
-              `}
-            >
-              {country === 'UK' ? 'United Kingdom' : country === 'IE' ? 'Ireland' : 'United States'}
-            </button>
-          ))}
-        </nav>
+      <div className="mb-6">
+        <div className="mb-4">
+          <h2 className="text-sm font-medium text-gray-700 mb-2">Select Country</h2>
+          <p className="text-xs text-gray-500">Only requirements for the selected country will be displayed below.</p>
+        </div>
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            {(['UK', 'IE', 'US'] as CountryCode[]).map((country) => (
+              <button
+                key={country}
+                onClick={() => setSelectedCountry(country)}
+                className={`
+                  py-4 px-1 border-b-2 font-medium text-sm transition-colors
+                  ${selectedCountry === country
+                    ? 'border-blue-600 text-blue-600 font-semibold'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }
+                `}
+              >
+                {country === 'UK' ? 'United Kingdom' : country === 'IE' ? 'Ireland' : 'United States'}
+                {selectedCountry === country && (
+                  <span className="ml-2 text-xs">✓</span>
+                )}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
+
+      {/* Selected Country Header */}
+      <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-center gap-2">
+          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-sm font-medium text-blue-900">
+            Showing requirements for: <span className="font-semibold">
+              {selectedCountry === 'UK' ? 'United Kingdom' : selectedCountry === 'IE' ? 'Ireland' : 'United States'}
+            </span>
+          </p>
+        </div>
       </div>
 
       {/* Actions */}
@@ -254,8 +277,14 @@ export default function ComplianceSettingsPage() {
 
           {requirements.length === 0 && (
             <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-              <p className="text-gray-500 mb-4">No requirements configured for {selectedCountry}.</p>
-              <p className="text-sm text-gray-400">Click "Seed Recommended Defaults" or "Add Custom Document" to get started.</p>
+              <p className="text-gray-500 mb-2 font-medium">
+                No requirements configured for <span className="font-semibold text-gray-700">
+                  {selectedCountry === 'UK' ? 'United Kingdom' : selectedCountry === 'IE' ? 'Ireland' : 'United States'}
+                </span>
+              </p>
+              <p className="text-sm text-gray-400">
+                Switch to a different country tab above to view other requirements, or use the buttons above to add new ones.
+              </p>
             </div>
           )}
         </div>
