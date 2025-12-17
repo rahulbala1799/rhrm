@@ -165,10 +165,17 @@ GET /api/staff?search=john&status=active&page=1&pageSize=25
 
 1. **Invitation Sent**: Admin/Manager sends invitation via `/api/invitations/send`
 2. **Invitation Accepted**: Staff member accepts invitation via `/api/invitations/accept`
+   - Creates active membership in tenant
 3. **Staff Onboarding**: Staff member completes onboarding at `/staff-onboarding/profile`
+   - User fills in full name and phone
 4. **Onboarding Complete**: Profile marked as complete via `/api/staff-onboarding/complete`
-5. **Staff Record Creation**: Admin/Manager creates staff record via `POST /api/staff` (manual step)
-6. **Appears in List**: Staff member now visible in staff list
+   - **Automatically creates staff record** with:
+     - Generated employee number (format: `EMP{timestamp}{random}`)
+     - Parsed first_name and last_name from full_name
+     - Email and phone from profile
+     - Status set to `active`
+     - Linked to user_id for proper association
+5. **Appears in List**: Staff member now visible in staff list automatically ✅
 
 ### Manual Staff Creation
 
