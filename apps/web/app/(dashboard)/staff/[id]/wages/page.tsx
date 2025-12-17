@@ -225,44 +225,46 @@ export default function StaffWagesPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Estimated Earnings</h3>
-            <p className="text-sm text-gray-600 mb-4">Based on different weekly hour scenarios</p>
-            
-            <div className="space-y-4">
-              {[20, 37.5, 40].map((hours) => (
-                <div key={hours} className="border-t border-gray-200 pt-4 first:border-0 first:pt-0">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-sm font-medium text-gray-900">{hours} hours per week</h4>
-                    <span className="text-xs text-gray-500">
-                      {hours >= 37.5 ? 'Full-time' : 'Part-time'}
-                    </span>
+          {wages.hourly_rate && (
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Estimated Earnings</h3>
+              <p className="text-sm text-gray-600 mb-4">Based on different weekly hour scenarios</p>
+              
+              <div className="space-y-4">
+                {[20, 37.5, 40].map((hours) => (
+                  <div key={hours} className="border-t border-gray-200 pt-4 first:border-0 first:pt-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-medium text-gray-900">{hours} hours per week</h4>
+                      <span className="text-xs text-gray-500">
+                        {hours >= 37.5 ? 'Full-time' : 'Part-time'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="text-xs font-medium text-gray-600">Weekly</label>
+                        <p className="text-gray-900 mt-1 font-semibold">£{calculateWeeklyEarnings(wages.hourly_rate, hours)}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-600">Monthly</label>
+                        <p className="text-gray-900 mt-1 font-semibold">£{calculateMonthlyEarnings(wages.hourly_rate, hours)}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-600">Annual</label>
+                        <p className="text-gray-900 mt-1 font-semibold">£{calculateAnnualEarnings(wages.hourly_rate, hours)}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="text-xs font-medium text-gray-600">Weekly</label>
-                      <p className="text-gray-900 mt-1 font-semibold">£{calculateWeeklyEarnings(wages.hourly_rate, hours)}</p>
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-gray-600">Monthly</label>
-                      <p className="text-gray-900 mt-1 font-semibold">£{calculateMonthlyEarnings(wages.hourly_rate, hours)}</p>
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-gray-600">Annual</label>
-                      <p className="text-gray-900 mt-1 font-semibold">£{calculateAnnualEarnings(wages.hourly_rate, hours)}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
 
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-              <p className="text-xs text-blue-800">
-                <strong>Note:</strong> These are gross earnings estimates before tax, National Insurance, and other deductions. 
-                Actual earnings will vary based on hours worked, overtime, and other factors.
-              </p>
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                <p className="text-xs text-blue-800">
+                  <strong>Note:</strong> These are gross earnings estimates before tax, National Insurance, and other deductions. 
+                  Actual earnings will vary based on hours worked, overtime, and other factors.
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
