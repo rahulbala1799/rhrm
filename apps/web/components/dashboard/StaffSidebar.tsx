@@ -28,7 +28,7 @@ const staffNavSections: NavSection[] = [
     title: 'My Profile',
     items: [
       { label: 'Profile', href: '/me/profile', icon: <ProfileIcon /> },
-      { label: 'Documents', href: '/me/documents', icon: <DocumentsIcon /> },
+      { label: 'My Compliance', href: '/compliance', icon: <DocumentsIcon /> },
     ],
   },
 ]

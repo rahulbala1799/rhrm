@@ -59,6 +59,8 @@ const navSections: NavSection[] = [
       { label: 'Company', href: '/settings/company', icon: <BuildingIcon /> },
       { label: 'Locations', href: '/settings/locations', icon: <LocationIcon /> },
       { label: 'Roles', href: '/settings/roles', icon: <RoleIcon /> },
+      { label: 'Compliance Docs', href: '/settings/compliance-documents', icon: <DocumentIcon /> },
+      { label: 'Review Submissions', href: '/settings/compliance-documents/review', icon: <ShieldIcon /> },
       { label: 'Permissions', href: '/settings/permissions', icon: <PermissionIcon /> },
       { label: 'Invitations', href: '/settings/invitations', icon: <InviteIcon /> },
       { label: 'Audit Log', href: '/settings/audit', icon: <AuditIcon /> },
