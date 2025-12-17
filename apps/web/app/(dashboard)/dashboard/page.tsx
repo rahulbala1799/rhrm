@@ -1,9 +1,19 @@
+import { redirect } from 'next/navigation'
+import { getTenantContext } from '@/lib/auth/get-tenant-context'
 import Link from 'next/link'
 import PageHeader from '@/components/ui/PageHeader'
 import StatCard from '@/components/ui/StatCard'
 import SectionCard from '@/components/ui/SectionCard'
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  // Get user's role
+  const { role } = await getTenantContext()
+
+  // Redirect staff to their dashboard
+  if (role === 'staff') {
+    redirect('/staff-dashboard')
+  }
+
   return (
     <div>
       <PageHeader
