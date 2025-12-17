@@ -31,3 +31,4 @@ CREATE POLICY profiles_select_policy_all ON profiles
 -- Instead uses two EXISTS subqueries which are more efficient
 
 
+

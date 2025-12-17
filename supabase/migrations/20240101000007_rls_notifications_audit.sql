@@ -56,3 +56,4 @@ CREATE POLICY audit_logs_select_policy_staff ON audit_logs
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
 
+

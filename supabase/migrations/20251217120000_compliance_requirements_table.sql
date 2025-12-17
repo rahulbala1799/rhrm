@@ -46,3 +46,4 @@ COMMENT ON COLUMN tenant_compliance_requirements.country_code IS 'UK, IE, or US 
 COMMENT ON COLUMN tenant_compliance_requirements.collection_method IS 'upload = file required, reference = reference data only, both = file + optional reference';
 COMMENT ON COLUMN tenant_compliance_requirements.applies_to_all IS 'If true, applies to all staff; if false, filtered by role_ids or location_ids';
 
+

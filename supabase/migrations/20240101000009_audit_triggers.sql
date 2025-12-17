@@ -234,3 +234,4 @@ CREATE TRIGGER audit_memberships_changes_trigger
     FOR EACH ROW EXECUTE FUNCTION public.audit_memberships_changes();
 
 
+

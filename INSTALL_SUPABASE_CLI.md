@@ -39,3 +39,4 @@ npx supabase --version
 3. Run migrations: `supabase db push`
 
 
+

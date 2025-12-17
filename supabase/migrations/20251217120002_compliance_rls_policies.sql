@@ -100,3 +100,4 @@ CREATE POLICY documents_delete_own_or_admin
 COMMENT ON POLICY requirements_select_members ON tenant_compliance_requirements IS 'All tenant members can read requirements to know what to upload';
 COMMENT ON POLICY documents_update_own_reference_metadata ON staff_compliance_documents IS 'Narrow exception: staff can correct reference metadata typos when status=submitted. Server enforces only these columns are updated.';
 
+

@@ -102,3 +102,4 @@ COMMENT ON FUNCTION public.audit_invitations_changes IS
 'Audits all invitation lifecycle events: creation, status changes (accepted/revoked/expired), and deletions.';
 
 
+

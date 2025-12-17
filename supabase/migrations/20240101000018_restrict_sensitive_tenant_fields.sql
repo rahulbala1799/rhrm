@@ -33,3 +33,4 @@ CREATE TRIGGER prevent_sensitive_tenant_updates_trigger
 -- with platform-only access, but this trigger approach works for v1
 
 
+

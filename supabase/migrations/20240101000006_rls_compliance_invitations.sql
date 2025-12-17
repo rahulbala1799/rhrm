@@ -141,3 +141,4 @@ CREATE POLICY invitations_insert_policy_manager ON invitations
 ALTER TABLE invitations ENABLE ROW LEVEL SECURITY;
 
 
+

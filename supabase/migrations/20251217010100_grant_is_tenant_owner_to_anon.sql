@@ -8,3 +8,4 @@ COMMENT ON FUNCTION public.is_tenant_owner IS
 'Check if user is tenant owner. Granted to anon for invitation queries that join with tenants table.';
 
 
+

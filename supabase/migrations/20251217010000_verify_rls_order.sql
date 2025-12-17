@@ -25,3 +25,4 @@ COMMENT ON POLICY tenants_select_policy_public ON tenants IS
 'Allow all users (including anonymous) to read tenant info. Required for invitation display.';
 
 
+

@@ -52,3 +52,4 @@ CREATE INDEX IF NOT EXISTS idx_shifts_tenant_start_time ON shifts(tenant_id, sta
 CREATE INDEX IF NOT EXISTS idx_timesheets_tenant_date ON timesheets(tenant_id, date);
 
 
+

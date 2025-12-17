@@ -89,3 +89,4 @@ COMMENT ON COLUMN staff_compliance_documents.storage_path IS 'Nullable for refer
 COMMENT ON COLUMN staff_compliance_documents.expires_at IS 'Calculated as submitted_at/reviewed_at + requirement.expires_in_months';
 COMMENT ON CONSTRAINT check_submission_type ON staff_compliance_documents IS 'Generic constraint: must have file OR reference. API enforces collection_method-specific rules.';
 
+

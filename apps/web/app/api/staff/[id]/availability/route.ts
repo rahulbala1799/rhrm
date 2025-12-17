@@ -128,3 +128,4 @@ export async function POST(
   return NextResponse.json({ availability }, { status: 201 })
 }
 
+

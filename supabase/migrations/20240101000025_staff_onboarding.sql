@@ -15,3 +15,4 @@ COMMENT ON COLUMN profiles.staff_onboarding_completed IS 'Tracks if staff member
 COMMENT ON COLUMN profiles.staff_onboarding_completed_at IS 'Timestamp when staff onboarding was completed';
 
 
+

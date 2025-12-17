@@ -52,3 +52,7 @@ apps/web/.env.vercel
 *.keys
 .env.secrets
 .env.keys
+
+# Documentation files that may contain sensitive info (optional - uncomment if needed)
+# apps/**/README.md
+# apps/**/*README*.md
