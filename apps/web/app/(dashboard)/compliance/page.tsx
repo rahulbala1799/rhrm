@@ -5,6 +5,7 @@ import PageHeader from '@/components/ui/PageHeader'
 import StatCard from '@/components/ui/StatCard'
 import { getStatusLabel, getStatusColor } from '@/lib/compliance/types'
 import type { RequirementWithDocument } from '@/lib/compliance/types'
+import { isValidDateFormat, autoFormatDateInput, normalizeDateInput, convertISOtoDDMMYYYY } from '@/lib/compliance/date-utils'
 
 export default function ComplianceDocumentsPage() {
   const [loading, setLoading] = useState(true)
@@ -28,7 +29,7 @@ export default function ComplianceDocumentsPage() {
     }
   }
 
-  const handleUpload = async (requirementId: string, docType: string, file: File | null, referenceNumber?: string, checkedDate?: string) => {
+  const handleUpload = async (requirementId: string, docType: string, file: File | null, referenceNumber?: string, checkedDate?: string, expiryDate?: string) => {
     setUploading(requirementId)
     
     try {
@@ -38,6 +39,7 @@ export default function ComplianceDocumentsPage() {
       formData.append('docType', docType)
       if (referenceNumber) formData.append('referenceNumber', referenceNumber)
       if (checkedDate) formData.append('checkedDate', checkedDate)
+      if (expiryDate) formData.append('expiryDate', expiryDate)
 
       const response = await fetch('/api/compliance/upload', {
         method: 'POST',
@@ -116,7 +118,7 @@ export default function ComplianceDocumentsPage() {
                 {computedStatus === 'not_uploaded' && (
                   <UploadForm
                     requirement={requirement}
-                    onSubmit={(file: File | null, ref?: string, date?: string) => handleUpload(requirement.id, requirement.doc_type, file, ref, date)}
+                    onSubmit={(file: File | null, ref?: string, date?: string, expiry?: string) => handleUpload(requirement.id, requirement.doc_type, file, ref, date, expiry)}
                     uploading={uploading === requirement.id}
                   />
                 )}
@@ -128,7 +130,8 @@ export default function ComplianceDocumentsPage() {
                 {computedStatus === 'approved' && document && (
                   <p className="text-sm text-green-600">
                     Approved on {document.reviewed_at ? new Date(document.reviewed_at).toLocaleDateString() : 'N/A'}
-                    {document.expires_at && ` • Expires: ${new Date(document.expires_at).toLocaleDateString()}`}
+                    {document.expiry_date && ` • Expiry: ${convertISOtoDDMMYYYY(document.expiry_date)}`}
+                    {!document.expiry_date && document.expires_at && ` • Expires: ${new Date(document.expires_at).toLocaleDateString()}`}
                   </p>
                 )}
 
@@ -137,7 +140,7 @@ export default function ComplianceDocumentsPage() {
                     <p className="text-sm text-red-600">Rejected: {document.rejection_reason}</p>
                     <UploadForm
                       requirement={requirement}
-                      onSubmit={(file: File | null, ref?: string, date?: string) => handleUpload(requirement.id, requirement.doc_type, file, ref, date)}
+                      onSubmit={(file: File | null, ref?: string, date?: string, expiry?: string) => handleUpload(requirement.id, requirement.doc_type, file, ref, date, expiry)}
                       uploading={uploading === requirement.id}
                     />
                   </div>
@@ -148,7 +151,7 @@ export default function ComplianceDocumentsPage() {
                     <p className="text-sm text-orange-600">Expired on {document.expires_at ? new Date(document.expires_at).toLocaleDateString() : 'N/A'}. Please upload a new document.</p>
                     <UploadForm
                       requirement={requirement}
-                      onSubmit={(file: File | null, ref?: string, date?: string) => handleUpload(requirement.id, requirement.doc_type, file, ref, date)}
+                      onSubmit={(file: File | null, ref?: string, date?: string, expiry?: string) => handleUpload(requirement.id, requirement.doc_type, file, ref, date, expiry)}
                       uploading={uploading === requirement.id}
                     />
                   </div>
@@ -188,14 +191,56 @@ function UploadForm({ requirement, onSubmit, uploading }: any) {
   const [file, setFile] = useState<File | null>(null)
   const [referenceNumber, setReferenceNumber] = useState('')
   const [checkedDate, setCheckedDate] = useState('')
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSubmit(file, referenceNumber || undefined, checkedDate || undefined)
-  }
+  const [expiryDate, setExpiryDate] = useState('')
+  const [expiryError, setExpiryError] = useState<string | null>(null)
 
   const needsFile = requirement.collection_method === 'upload' || requirement.collection_method === 'both'
   const needsReference = requirement.collection_method === 'reference'
+  const requiresExpiryDate = requirement.requires_expiry_date === true
+
+  const handleExpiryDateChange = (value: string) => {
+    // Normalize input (accept hyphens or slashes)
+    const normalized = normalizeDateInput(value)
+    
+    // Auto-format as user types
+    const formatted = autoFormatDateInput(normalized)
+    setExpiryDate(formatted)
+
+    // Clear error when user starts typing
+    if (expiryError) setExpiryError(null)
+  }
+
+  const validateExpiryDate = (): boolean => {
+    if (!requiresExpiryDate) return true
+
+    if (!expiryDate || expiryDate.trim() === '') {
+      setExpiryError('Expiry date is required for this document type')
+      return false
+    }
+
+    if (!isValidDateFormat(expiryDate)) {
+      setExpiryError('Please enter a valid date in dd/mm/yyyy format')
+      return false
+    }
+
+    return true
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    // Validate expiry date if required
+    if (!validateExpiryDate()) {
+      return
+    }
+
+    onSubmit(
+      file, 
+      referenceNumber || undefined, 
+      checkedDate || undefined,
+      expiryDate || undefined
+    )
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
@@ -204,11 +249,12 @@ function UploadForm({ requirement, onSubmit, uploading }: any) {
           <label className="block text-sm font-medium text-gray-700 mb-1">Upload File</label>
           <input
             type="file"
-            accept=".pdf,.jpg,.jpeg,.png,.webp"
+            accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
             onChange={(e) => setFile(e.target.files?.[0] || null)}
             required={needsFile}
             className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
           />
+          <p className="mt-1 text-xs text-gray-500">Accepted: PDF, JPG, PNG, WEBP, DOC, DOCX (max 5MB)</p>
         </div>
       )}
 
@@ -235,6 +281,41 @@ function UploadForm({ requirement, onSubmit, uploading }: any) {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             />
           </div>
+        </div>
+      )}
+
+      {requiresExpiryDate && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Expiry Date <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              value={expiryDate}
+              onChange={(e) => handleExpiryDateChange(e.target.value)}
+              onBlur={validateExpiryDate}
+              placeholder="DD/MM/YYYY"
+              maxLength={10}
+              className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                expiryError ? 'border-red-500' : 'border-gray-300'
+              }`}
+            />
+          </div>
+          {expiryError && (
+            <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              {expiryError}
+            </p>
+          )}
+          <p className="mt-1 text-xs text-gray-500">Format: dd/mm/yyyy</p>
         </div>
       )}
 

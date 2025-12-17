@@ -21,6 +21,7 @@ export interface TenantComplianceRequirement {
   requirement_level: RequirementLevel
   collection_method: CollectionMethod
   expires_in_months: number | null
+  requires_expiry_date: boolean // NEW: Admin toggle for manual expiry date entry
   applies_to_all: boolean
   role_ids: string[] | null
   location_ids: string[] | null
@@ -44,7 +45,8 @@ export interface StaffComplianceDocument {
   file_size: number | null // Nullable for reference-only submissions
   reference_number: string | null
   checked_date: string | null
-  expires_at: string | null
+  expires_at: string | null // Auto-calculated from expires_in_months
+  expiry_date: string | null // NEW: User-entered expiry date (ISO format YYYY-MM-DD)
   rejection_reason: string | null
   submitted_at: string // NOT NULL in database
   reviewed_by: string | null

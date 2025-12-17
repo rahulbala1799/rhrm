@@ -23,6 +23,7 @@ export default function CustomRequirementModal({
   const [requirementLevel, setRequirementLevel] = useState<RequirementLevel>('required')
   const [collectionMethod, setCollectionMethod] = useState<CollectionMethod>('upload')
   const [expiresInMonths, setExpiresInMonths] = useState<string>('')
+  const [requiresExpiryDate, setRequiresExpiryDate] = useState(false)
   const [appliesToAll, setAppliesToAll] = useState(true)
   const [isEnabled, setIsEnabled] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -37,6 +38,7 @@ export default function CustomRequirementModal({
         setRequirementLevel(editingRequirement.requirement_level)
         setCollectionMethod(editingRequirement.collection_method)
         setExpiresInMonths(editingRequirement.expires_in_months?.toString() || '')
+        setRequiresExpiryDate(editingRequirement.requires_expiry_date || false)
         setAppliesToAll(editingRequirement.applies_to_all)
         setIsEnabled(editingRequirement.is_enabled)
       } else {
@@ -46,6 +48,7 @@ export default function CustomRequirementModal({
         setRequirementLevel('required')
         setCollectionMethod('upload')
         setExpiresInMonths('')
+        setRequiresExpiryDate(false)
         setAppliesToAll(true)
         setIsEnabled(true)
       }
@@ -66,6 +69,7 @@ export default function CustomRequirementModal({
         requirement_level: requirementLevel,
         collection_method: collectionMethod,
         expires_in_months: expiresInMonths ? parseInt(expiresInMonths) : null,
+        requires_expiry_date: requiresExpiryDate,
         applies_to_all: appliesToAll,
         role_ids: null, // Can be enhanced later for role/location filtering
         location_ids: null,
@@ -274,6 +278,39 @@ export default function CustomRequirementModal({
             <p className="mt-1 text-xs text-gray-500">
               Document expires X months after approval. Leave blank if document does not expire.
             </p>
+          </div>
+
+          {/* Track Expiry Date Toggle */}
+          <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+            <div className="flex items-center justify-between mb-2">
+              <label htmlFor="requiresExpiryDate" className="text-sm font-medium text-gray-700">
+                Track Expiry Date
+              </label>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={requiresExpiryDate}
+                onClick={() => setRequiresExpiryDate(!requiresExpiryDate)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  requiresExpiryDate ? 'bg-blue-600' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    requiresExpiryDate ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            <div className="text-xs text-gray-600 space-y-1">
+              <p className="font-medium">
+                {requiresExpiryDate ? '✓ ON: Staff must enter an expiry date when submitting this document' : '○ OFF: No expiry date required'}
+              </p>
+              <p className="text-gray-500">
+                When enabled, staff will see a required date field (dd/mm/yyyy format) during document upload.
+                This is different from the automatic expiry period above.
+              </p>
+            </div>
           </div>
 
           {/* Applies To */}

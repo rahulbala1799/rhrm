@@ -28,6 +28,7 @@ export async function PUT(
   if (body.requirement_level !== undefined) updates.requirement_level = body.requirement_level
   if (body.collection_method !== undefined) updates.collection_method = body.collection_method
   if (body.expires_in_months !== undefined) updates.expires_in_months = body.expires_in_months
+  if (body.requires_expiry_date !== undefined) updates.requires_expiry_date = body.requires_expiry_date
   if (body.applies_to_all !== undefined) updates.applies_to_all = body.applies_to_all
   if (body.role_ids !== undefined) updates.role_ids = body.role_ids
   if (body.location_ids !== undefined) updates.location_ids = body.location_ids

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getTenantContext } from '@/lib/auth/get-tenant-context'
 import { NextResponse } from 'next/server'
+import { isValidDateFormat, convertDDMMYYYYtoISO } from '@/lib/compliance/date-utils'
 
 // Allowed MIME types
 const ALLOWED_MIME_TYPES = [
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
     const docType = formData.get('docType') as string
     const referenceNumber = formData.get('referenceNumber') as string | null
     const checkedDate = formData.get('checkedDate') as string | null
+    const expiryDateInput = formData.get('expiryDate') as string | null
 
     if (!requirementId || !docType) {
       return NextResponse.json({ error: 'requirementId and docType are required' }, { status: 400 })
@@ -86,6 +88,32 @@ export async function POST(request: Request) {
 
       if (!ALLOWED_MIME_TYPES.includes(file.type)) {
         return NextResponse.json({ error: 'Invalid file type. Allowed: PDF, JPG, PNG, WEBP, DOC, DOCX' }, { status: 400 })
+      }
+    }
+
+    // Validate expiry date if required
+    // This is CRITICAL server-side validation - never trust client
+    let expiryDateISO: string | null = null
+    if (requirement.requires_expiry_date === true) {
+      if (!expiryDateInput || expiryDateInput.trim() === '') {
+        return NextResponse.json({ 
+          error: 'Expiry date is required for this document type' 
+        }, { status: 400 })
+      }
+
+      // Validate format (dd/mm/yyyy)
+      if (!isValidDateFormat(expiryDateInput)) {
+        return NextResponse.json({ 
+          error: 'Invalid date format. Please use dd/mm/yyyy' 
+        }, { status: 400 })
+      }
+
+      // Convert to ISO format for database storage
+      expiryDateISO = convertDDMMYYYYtoISO(expiryDateInput)
+      if (!expiryDateISO) {
+        return NextResponse.json({ 
+          error: 'Invalid date value' 
+        }, { status: 400 })
       }
     }
 
@@ -180,6 +208,7 @@ export async function POST(request: Request) {
         reference_number: referenceNumber,
         checked_date: checkedDate,
         expires_at: expiresAt,
+        expiry_date: expiryDateISO, // NEW: User-entered expiry date
         submitted_at: new Date().toISOString()
       })
       .select()
