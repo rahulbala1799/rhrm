@@ -231,30 +231,33 @@ export default function StaffWagesPage() {
               <p className="text-sm text-gray-600 mb-4">Based on different weekly hour scenarios</p>
               
               <div className="space-y-4">
-                {[20, 37.5, 40].map((hours) => (
-                  <div key={hours} className="border-t border-gray-200 pt-4 first:border-0 first:pt-0">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-medium text-gray-900">{hours} hours per week</h4>
-                      <span className="text-xs text-gray-500">
-                        {hours >= 37.5 ? 'Full-time' : 'Part-time'}
-                      </span>
+                {[20, 37.5, 40].map((hours) => {
+                  const rate = wages.hourly_rate!
+                  return (
+                    <div key={hours} className="border-t border-gray-200 pt-4 first:border-0 first:pt-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-sm font-medium text-gray-900">{hours} hours per week</h4>
+                        <span className="text-xs text-gray-500">
+                          {hours >= 37.5 ? 'Full-time' : 'Part-time'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <label className="text-xs font-medium text-gray-600">Weekly</label>
+                          <p className="text-gray-900 mt-1 font-semibold">£{calculateWeeklyEarnings(rate, hours)}</p>
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-gray-600">Monthly</label>
+                          <p className="text-gray-900 mt-1 font-semibold">£{calculateMonthlyEarnings(rate, hours)}</p>
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-gray-600">Annual</label>
+                          <p className="text-gray-900 mt-1 font-semibold">£{calculateAnnualEarnings(rate, hours)}</p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <label className="text-xs font-medium text-gray-600">Weekly</label>
-                        <p className="text-gray-900 mt-1 font-semibold">£{calculateWeeklyEarnings(wages.hourly_rate, hours)}</p>
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-gray-600">Monthly</label>
-                        <p className="text-gray-900 mt-1 font-semibold">£{calculateMonthlyEarnings(wages.hourly_rate, hours)}</p>
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-gray-600">Annual</label>
-                        <p className="text-gray-900 mt-1 font-semibold">£{calculateAnnualEarnings(wages.hourly_rate, hours)}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
 
               <div className="mt-6 p-4 bg-blue-50 rounded-lg">
