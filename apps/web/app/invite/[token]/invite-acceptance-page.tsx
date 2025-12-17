@@ -27,6 +27,7 @@ interface Props {
 export default function InviteAcceptancePage({ invitation, token }: Props) {
   const router = useRouter()
   const [isSignup, setIsSignup] = useState(true)
+  const [showLoginOption, setShowLoginOption] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
@@ -128,14 +129,21 @@ export default function InviteAcceptancePage({ invitation, token }: Props) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">You're Invited!</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            {isSignup ? 'Create Your Account' : 'Welcome Back'}
+          </h1>
           <p className="text-gray-600">
-            Join <span className="font-semibold text-gray-900">
+            {isSignup ? 'You\'ve been invited to join ' : 'Log in to accept your invitation to '}
+            <span className="font-semibold text-gray-900">
               {Array.isArray(invitation.tenants) 
                 ? invitation.tenants[0]?.name || 'the team'
                 : invitation.tenants?.name || 'the team'}
-            </span> as{' '}
-            <span className="font-semibold text-gray-900 capitalize">{invitation.role}</span>
+            </span>
+            {isSignup && (
+              <>
+                {' '}as <span className="font-semibold text-gray-900 capitalize">{invitation.role}</span>
+              </>
+            )}
           </p>
         </div>
 
@@ -145,32 +153,34 @@ export default function InviteAcceptancePage({ invitation, token }: Props) {
           </div>
         )}
 
-        <div className="mb-6">
-          <div className="flex bg-gray-100 rounded-lg p-1">
-            <button
-              type="button"
-              onClick={() => setIsSignup(true)}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                isSignup
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Sign Up
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsSignup(false)}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                !isSignup
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Log In
-            </button>
+        {showLoginOption && (
+          <div className="mb-6">
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                type="button"
+                onClick={() => setIsSignup(true)}
+                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                  isSignup
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Sign Up
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsSignup(false)}
+                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                  !isSignup
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Log In
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         <form onSubmit={isSignup ? handleSignup : handleLogin} className="space-y-4">
           {isSignup && (
@@ -224,11 +234,23 @@ export default function InviteAcceptancePage({ invitation, token }: Props) {
             disabled={loading}
             className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Processing...' : isSignup ? 'Sign Up & Accept' : 'Log In & Accept'}
+            {loading ? 'Processing...' : isSignup ? 'Create Account & Accept Invitation' : 'Log In & Accept'}
           </button>
         </form>
 
-        <div className="mt-6 text-center">
+        <div className="mt-6 text-center space-y-3">
+          {isSignup && !showLoginOption && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowLoginOption(true)
+                setIsSignup(false)
+              }}
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Already have an account? Log in instead
+            </button>
+          )}
           <p className="text-xs text-gray-500">
             By continuing, you agree to join{' '}
             {Array.isArray(invitation.tenants) 
