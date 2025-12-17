@@ -140,3 +140,4 @@ CREATE POLICY invitations_insert_policy_manager ON invitations
 -- Enable RLS
 ALTER TABLE invitations ENABLE ROW LEVEL SECURITY;
 
+

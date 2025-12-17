@@ -52,3 +52,4 @@ export default async function OnboardingPage() {
   redirect('/onboarding/step-1-welcome')
 }
 
+

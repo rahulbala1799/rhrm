@@ -51,3 +51,4 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_shifts_tenant_start_time ON shifts(tenant_id, start_time);
 CREATE INDEX IF NOT EXISTS idx_timesheets_tenant_date ON timesheets(tenant_id, date);
 
+

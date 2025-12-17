@@ -49,3 +49,4 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 --   - UPDATE: System only (service role)
 --   - DELETE: System only (service role)
 
+

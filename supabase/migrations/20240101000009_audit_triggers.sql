@@ -233,3 +233,4 @@ CREATE TRIGGER audit_memberships_changes_trigger
     AFTER INSERT OR UPDATE OR DELETE ON memberships
     FOR EACH ROW EXECUTE FUNCTION public.audit_memberships_changes();
 
+

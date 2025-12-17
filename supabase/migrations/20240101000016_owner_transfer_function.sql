@@ -92,3 +92,4 @@ REVOKE EXECUTE ON FUNCTION public.transfer_tenant_ownership FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.transfer_tenant_ownership FROM authenticated;
 REVOKE EXECUTE ON FUNCTION public.transfer_tenant_ownership FROM anon;
 
+

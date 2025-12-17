@@ -47,3 +47,4 @@ echo "   3. Start the app:"
 echo "      npm run dev:web"
 echo ""
 
+

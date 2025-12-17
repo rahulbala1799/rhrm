@@ -26,3 +26,4 @@ $$;
 -- 3. As a normal query without SECURITY DEFINER
 -- Clients never call cleanup RPC directly.
 
+

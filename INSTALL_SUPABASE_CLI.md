@@ -38,3 +38,4 @@ npx supabase --version
 2. Link project: `supabase link --project-ref urewrejmncnbdxrlrjyf`
 3. Run migrations: `supabase db push`
 
+

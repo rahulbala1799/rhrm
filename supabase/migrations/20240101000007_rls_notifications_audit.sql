@@ -55,3 +55,4 @@ CREATE POLICY audit_logs_select_policy_staff ON audit_logs
 -- Enable RLS
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
+

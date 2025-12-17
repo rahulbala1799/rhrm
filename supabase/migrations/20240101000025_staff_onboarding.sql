@@ -14,3 +14,4 @@ WHERE staff_onboarding_completed = TRUE;
 COMMENT ON COLUMN profiles.staff_onboarding_completed IS 'Tracks if staff member has completed their onboarding flow after accepting an invitation';
 COMMENT ON COLUMN profiles.staff_onboarding_completed_at IS 'Timestamp when staff onboarding was completed';
 
+

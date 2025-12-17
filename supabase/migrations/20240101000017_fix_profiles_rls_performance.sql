@@ -30,3 +30,4 @@ CREATE POLICY profiles_select_policy_all ON profiles
 -- This avoids the expensive self-join on memberships
 -- Instead uses two EXISTS subqueries which are more efficient
 
+

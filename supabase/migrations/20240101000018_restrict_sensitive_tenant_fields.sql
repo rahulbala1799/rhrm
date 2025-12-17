@@ -32,3 +32,4 @@ CREATE TRIGGER prevent_sensitive_tenant_updates_trigger
 -- Note: For production, consider splitting billing/subscription into separate table
 -- with platform-only access, but this trigger approach works for v1
 
+

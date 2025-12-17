@@ -122,3 +122,4 @@ Visit **http://localhost:3000** - you should see the login page!
 - See [README.md](./README.md) for architecture details
 - Check Supabase Dashboard logs for errors
 
+

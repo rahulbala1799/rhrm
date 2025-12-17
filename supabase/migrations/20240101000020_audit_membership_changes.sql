@@ -115,3 +115,4 @@ CREATE TRIGGER audit_tenant_ownership_changes_trigger
     WHEN (OLD.owner_user_id IS DISTINCT FROM NEW.owner_user_id)
     EXECUTE FUNCTION public.audit_tenant_ownership_changes();
 
+

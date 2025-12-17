@@ -14,3 +14,4 @@ COMMENT ON FUNCTION public.user_has_membership IS
 COMMENT ON FUNCTION public.user_has_role_in_tenant IS 
 'Check if user has specific role in tenant. Granted to anon for invitation queries.';
 
+

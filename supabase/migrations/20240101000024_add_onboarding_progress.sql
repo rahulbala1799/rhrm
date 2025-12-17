@@ -50,3 +50,4 @@ WHERE onboarding_expires_at IS NOT NULL;
 -- For UPDATE: Only owner can update their own onboarding_progress
 -- (Already covered by profiles_update_policy_own)
 
+

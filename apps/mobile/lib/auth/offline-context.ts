@@ -66,3 +66,4 @@ export async function canPerformWrite(): Promise<boolean> {
   return context.isVerified && context.canWrite
 }
 
+

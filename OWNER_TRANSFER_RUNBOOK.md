@@ -107,3 +107,4 @@ Monitor these audit log entries:
   1. Transfer ownership first (via emergency procedure)
   2. Then delete account
 
+
