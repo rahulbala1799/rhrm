@@ -175,9 +175,13 @@ export default function ComplianceSettingsPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-lg font-semibold">{req.title}</h3>
-                    {isCustomRequirement(req) && (
+                    {isCustomRequirement(req) ? (
                       <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                         Custom
+                      </span>
+                    ) : (
+                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        Pre-seeded
                       </span>
                     )}
                     <span className={`
@@ -196,6 +200,18 @@ export default function ComplianceSettingsPage() {
                   <div className="text-sm text-gray-600 space-y-1">
                     <p>Doc Type: <span className="font-mono">{req.doc_type}</span></p>
                     {req.expires_in_months && <p>Expires after: {req.expires_in_months} months</p>}
+                    <p className="flex items-center gap-2">
+                      Expiry tracking: 
+                      {req.requires_expiry_date ? (
+                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                          ✓ Enabled
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                          ○ Disabled
+                        </span>
+                      )}
+                    </p>
                     {req.applies_to_all ? (
                       <p>Applies to: All staff</p>
                     ) : (
@@ -205,14 +221,12 @@ export default function ComplianceSettingsPage() {
                 </div>
 
                 <div className="flex items-center gap-2 ml-4">
-                  {isCustomRequirement(req) && (
-                    <button
-                      onClick={() => handleOpenModal(req)}
-                      className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 font-medium text-sm"
-                    >
-                      Edit
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleOpenModal(req)}
+                    className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 font-medium text-sm"
+                  >
+                    Edit
+                  </button>
                   <button
                     onClick={() => handleToggleEnabled(req)}
                     className={`
