@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import PageHeader from '@/components/ui/PageHeader'
+import CustomRequirementModal from './components/CustomRequirementModal'
 import type { TenantComplianceRequirement, CountryCode } from '@/lib/compliance/types'
 
 export default function ComplianceSettingsPage() {
@@ -9,6 +10,8 @@ export default function ComplianceSettingsPage() {
   const [requirements, setRequirements] = useState<TenantComplianceRequirement[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editingRequirement, setEditingRequirement] = useState<TenantComplianceRequirement | null>(null)
 
   useEffect(() => {
     fetchRequirements()
@@ -83,6 +86,24 @@ export default function ComplianceSettingsPage() {
     }
   }
 
+  const handleOpenModal = (requirement?: TenantComplianceRequirement) => {
+    setEditingRequirement(requirement || null)
+    setModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setModalOpen(false)
+    setEditingRequirement(null)
+  }
+
+  const handleSaveModal = () => {
+    fetchRequirements()
+  }
+
+  const isCustomRequirement = (req: TenantComplianceRequirement) => {
+    return req.doc_type.startsWith('custom_')
+  }
+
   return (
     <div>
       <PageHeader
@@ -121,15 +142,26 @@ export default function ComplianceSettingsPage() {
         <p className="text-sm text-gray-600">
           {requirements.length} requirement{requirements.length !== 1 ? 's' : ''} configured
         </p>
-        {requirements.length === 0 && (
+        <div className="flex items-center gap-3">
+          {requirements.length === 0 && (
+            <button
+              onClick={handleSeedDefaults}
+              disabled={saving}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+            >
+              {saving ? 'Seeding...' : 'Seed Recommended Defaults'}
+            </button>
+          )}
           <button
-            onClick={handleSeedDefaults}
-            disabled={saving}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+            onClick={() => handleOpenModal()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
           >
-            {saving ? 'Seeding...' : 'Seed Recommended Defaults'}
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Custom Document
           </button>
-        )}
+        </div>
       </div>
 
       {/* Requirements List */}
@@ -143,6 +175,11 @@ export default function ComplianceSettingsPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-lg font-semibold">{req.title}</h3>
+                    {isCustomRequirement(req) && (
+                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                        Custom
+                      </span>
+                    )}
                     <span className={`
                       px-3 py-1 rounded-full text-xs font-medium
                       ${req.requirement_level === 'required' ? 'bg-red-100 text-red-800' :
@@ -168,6 +205,14 @@ export default function ComplianceSettingsPage() {
                 </div>
 
                 <div className="flex items-center gap-2 ml-4">
+                  {isCustomRequirement(req) && (
+                    <button
+                      onClick={() => handleOpenModal(req)}
+                      className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 font-medium text-sm"
+                    >
+                      Edit
+                    </button>
+                  )}
                   <button
                     onClick={() => handleToggleEnabled(req)}
                     className={`
@@ -180,12 +225,14 @@ export default function ComplianceSettingsPage() {
                   >
                     {req.is_enabled ? 'Enabled' : 'Disabled'}
                   </button>
-                  <button
-                    onClick={() => handleDelete(req.id)}
-                    className="px-4 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 font-medium text-sm"
-                  >
-                    Delete
-                  </button>
+                  {isCustomRequirement(req) && (
+                    <button
+                      onClick={() => handleDelete(req.id)}
+                      className="px-4 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 font-medium text-sm"
+                    >
+                      Delete
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -194,11 +241,19 @@ export default function ComplianceSettingsPage() {
           {requirements.length === 0 && (
             <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
               <p className="text-gray-500 mb-4">No requirements configured for {selectedCountry}.</p>
-              <p className="text-sm text-gray-400">Click "Seed Recommended Defaults" to get started.</p>
+              <p className="text-sm text-gray-400">Click "Seed Recommended Defaults" or "Add Custom Document" to get started.</p>
             </div>
           )}
         </div>
       )}
+
+      <CustomRequirementModal
+        isOpen={modalOpen}
+        onClose={handleCloseModal}
+        onSave={handleSaveModal}
+        country={selectedCountry}
+        editingRequirement={editingRequirement}
+      />
     </div>
   )
 }

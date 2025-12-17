@@ -3,6 +3,26 @@ import { getTenantContext } from '@/lib/auth/get-tenant-context'
 import { NextResponse } from 'next/server'
 
 /**
+ * Sanitize doc_type to be safe for URLs and storage paths
+ * Converts to lowercase, replaces spaces with underscores, removes unsafe characters
+ * Prefixes with 'custom_' if not already prefixed
+ */
+function sanitizeDocType(input: string): string {
+  // Convert to lowercase, replace spaces with underscores
+  let sanitized = input.toLowerCase().trim().replace(/\s+/g, '_')
+  
+  // Remove any character that's not alphanumeric, underscore, or hyphen
+  sanitized = sanitized.replace(/[^a-z0-9_-]/g, '')
+  
+  // Ensure it starts with 'custom_' for custom requirements
+  if (!sanitized.startsWith('custom_')) {
+    sanitized = 'custom_' + sanitized
+  }
+  
+  return sanitized
+}
+
+/**
  * GET /api/settings/compliance-documents
  * Get compliance requirements for tenant + country
  */
@@ -54,7 +74,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const {
+  let {
     country_code,
     doc_type,
     title,
@@ -68,12 +88,20 @@ export async function POST(request: Request) {
     sort_order,
   } = body
 
-  // Validate required fields
-  if (!country_code || !doc_type || !title || !requirement_level || !collection_method) {
+  // Validate required fields (doc_type is optional - will be generated from title)
+  if (!country_code || !title || !requirement_level || !collection_method) {
     return NextResponse.json(
-      { error: 'Missing required fields: country_code, doc_type, title, requirement_level, collection_method' },
+      { error: 'Missing required fields: country_code, title, requirement_level, collection_method' },
       { status: 400 }
     )
+  }
+
+  // Auto-generate and sanitize doc_type if not provided
+  if (!doc_type) {
+    doc_type = sanitizeDocType(title)
+  } else {
+    // Sanitize provided doc_type
+    doc_type = sanitizeDocType(doc_type)
   }
 
   // Validate enum values

@@ -7,10 +7,12 @@ const ALLOWED_MIME_TYPES = [
   'application/pdf',
   'image/jpeg',
   'image/png',
-  'image/webp'
+  'image/webp',
+  'application/msword', // .doc
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
 ]
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB (5,242,880 bytes)
 
 /**
  * POST /api/compliance/upload
@@ -83,7 +85,7 @@ export async function POST(request: Request) {
       }
 
       if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-        return NextResponse.json({ error: 'Invalid file type. Allowed: PDF, JPG, PNG, WEBP' }, { status: 400 })
+        return NextResponse.json({ error: 'Invalid file type. Allowed: PDF, JPG, PNG, WEBP, DOC, DOCX' }, { status: 400 })
       }
     }
 
@@ -96,27 +98,14 @@ export async function POST(request: Request) {
       .eq('doc_type', docType)
       .single()
 
-    // Delete old file if exists and has storage_path
-    if (existing && existing.storage_path) {
-      await supabase.storage
-        .from('compliance-documents')
-        .remove([existing.storage_path])
-    }
-
-    // Delete old database row if exists
-    if (existing) {
-      await supabase
-        .from('staff_compliance_documents')
-        .delete()
-        .eq('id', existing.id)
-    }
-
     let storagePath: string | null = null
     let fileName: string | null = null
     let fileMime: string | null = null
     let fileSize: number | null = null
+    let oldStoragePath: string | null = existing?.storage_path || null
 
-    // Upload file if provided
+    // Upload new file FIRST (before deleting anything)
+    // This way if upload fails, we haven't lost the old data
     if (hasFile) {
       const now = new Date()
       const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -148,6 +137,30 @@ export async function POST(request: Request) {
       const now = new Date()
       const expiryDate = new Date(now.setMonth(now.getMonth() + requirement.expires_in_months))
       expiresAt = expiryDate.toISOString().split('T')[0] // YYYY-MM-DD
+    }
+
+    // ATOMIC REPLACEMENT: Delete old + Insert new
+    // We do this in quick succession to minimize gap
+    // New file is already uploaded, so if this fails, we clean up new file
+    // but old row remains intact
+    
+    // Delete old database row if exists (respects UNIQUE constraint)
+    if (existing) {
+      const { error: deleteError } = await supabase
+        .from('staff_compliance_documents')
+        .delete()
+        .eq('id', existing.id)
+      
+      if (deleteError) {
+        console.error('Failed to delete old record:', deleteError)
+        // Clean up newly uploaded file
+        if (storagePath) {
+          await supabase.storage
+            .from('compliance-documents')
+            .remove([storagePath])
+        }
+        return NextResponse.json({ error: 'Failed to replace document' }, { status: 500 })
+      }
     }
 
     // Insert new document record
@@ -182,7 +195,20 @@ export async function POST(request: Request) {
           .remove([storagePath])
       }
       
+      // NOTE: Old row was deleted but insert failed
+      // Staff member now has no row for this doc_type (not ideal but recoverable)
+      // They can resubmit. This is the trade-off without true DB transactions.
+      
       return NextResponse.json({ error: 'Failed to create document record' }, { status: 500 })
+    }
+
+    // Success! Now clean up old storage file (if exists)
+    if (oldStoragePath) {
+      // Fire and forget - don't block response on cleanup
+      supabase.storage
+        .from('compliance-documents')
+        .remove([oldStoragePath])
+        .catch(err => console.error('Failed to clean up old file:', err))
     }
 
     return NextResponse.json({ 
