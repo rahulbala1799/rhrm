@@ -8,6 +8,7 @@ export interface SeedRequirement {
   requirement_level: RequirementLevel
   collection_method: CollectionMethod
   expires_in_months: number | null
+  requires_expiry_date: boolean // Admin toggle for manual expiry date entry
   sort_order: number
 }
 
@@ -19,6 +20,7 @@ export const UK_RECOMMENDED: SeedRequirement[] = [
     requirement_level: 'required',
     collection_method: 'upload',
     expires_in_months: null,
+    requires_expiry_date: true, // Visas/work permits have expiry dates
     sort_order: 10,
   },
   {
@@ -27,6 +29,7 @@ export const UK_RECOMMENDED: SeedRequirement[] = [
     requirement_level: 'required',
     collection_method: 'upload',
     expires_in_months: null,
+    requires_expiry_date: false,
     sort_order: 20,
   },
   {
@@ -35,6 +38,7 @@ export const UK_RECOMMENDED: SeedRequirement[] = [
     requirement_level: 'required',
     collection_method: 'upload',
     expires_in_months: null,
+    requires_expiry_date: false,
     sort_order: 30,
   },
   {
@@ -43,6 +47,7 @@ export const UK_RECOMMENDED: SeedRequirement[] = [
     requirement_level: 'required',
     collection_method: 'upload',
     expires_in_months: 12,
+    requires_expiry_date: false, // Auto-calculated expiry, not user-entered
     sort_order: 40,
   },
 ]
@@ -55,6 +60,7 @@ export const IE_RECOMMENDED: SeedRequirement[] = [
     requirement_level: 'required',
     collection_method: 'upload',
     expires_in_months: null,
+    requires_expiry_date: false,
     sort_order: 10,
   },
   {
@@ -63,6 +69,7 @@ export const IE_RECOMMENDED: SeedRequirement[] = [
     requirement_level: 'required',
     collection_method: 'reference',
     expires_in_months: null,
+    requires_expiry_date: false,
     sort_order: 20,
   },
   {
@@ -71,6 +78,7 @@ export const IE_RECOMMENDED: SeedRequirement[] = [
     requirement_level: 'conditional',
     collection_method: 'upload',
     expires_in_months: 12,
+    requires_expiry_date: true, // Work permits/visas have expiry dates
     sort_order: 30,
   },
   {
@@ -79,6 +87,7 @@ export const IE_RECOMMENDED: SeedRequirement[] = [
     requirement_level: 'required',
     collection_method: 'upload',
     expires_in_months: null,
+    requires_expiry_date: false,
     sort_order: 40,
   },
   {
@@ -87,6 +96,7 @@ export const IE_RECOMMENDED: SeedRequirement[] = [
     requirement_level: 'required',
     collection_method: 'upload',
     expires_in_months: 12,
+    requires_expiry_date: false, // Auto-calculated expiry
     sort_order: 50,
   },
 ]
@@ -99,6 +109,7 @@ export const US_RECOMMENDED: SeedRequirement[] = [
     requirement_level: 'required',
     collection_method: 'both',
     expires_in_months: null,
+    requires_expiry_date: true, // Work authorization documents have expiry dates
     sort_order: 10,
   },
   {
@@ -107,6 +118,7 @@ export const US_RECOMMENDED: SeedRequirement[] = [
     requirement_level: 'required',
     collection_method: 'upload',
     expires_in_months: null,
+    requires_expiry_date: false,
     sort_order: 20,
   },
   {
@@ -115,6 +127,7 @@ export const US_RECOMMENDED: SeedRequirement[] = [
     requirement_level: 'required',
     collection_method: 'upload',
     expires_in_months: null,
+    requires_expiry_date: false,
     sort_order: 30,
   },
 ]
