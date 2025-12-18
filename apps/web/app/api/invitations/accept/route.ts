@@ -105,11 +105,16 @@ export async function POST(request: Request) {
 
       if (!existingStaff) {
         // Create staff record if it doesn't exist
-        const { data: profile } = await serviceClient
+        const { data: profile, error: profileError } = await serviceClient
           .from('profiles')
           .select('full_name, email, phone')
           .eq('id', user.id)
           .single()
+
+        if (profileError) {
+          console.error('Error fetching profile for staff creation (existing membership):', profileError)
+          // Continue with fallback values
+        }
 
         const fullName = profile?.full_name || user.email || 'Staff Member'
         const nameParts = fullName.trim().split(/\s+/)
@@ -120,7 +125,7 @@ export async function POST(request: Request) {
         const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
         const employee_number = `EMP${timestamp}${random}`
 
-        await serviceClient
+        const { data: staff, error: staffError } = await serviceClient
           .from('staff')
           .insert({
             tenant_id: invitation.tenant_id,
@@ -132,6 +137,57 @@ export async function POST(request: Request) {
             phone: profile?.phone || null,
             status: 'active',
           })
+          .select('id, employee_number')
+          .single()
+
+        if (staffError) {
+          console.error('Error creating staff record (existing membership):', staffError)
+          console.error('Staff error details:', JSON.stringify({
+            code: staffError.code,
+            message: staffError.message,
+            details: staffError.details,
+            hint: staffError.hint,
+            tenant_id: invitation.tenant_id,
+            user_id: user.id,
+            email: profile?.email || user.email,
+          }, null, 2))
+          
+          // If employee number conflict, try again with different number
+          if (staffError.code === '23505') {
+            const retryTimestamp = Date.now().toString().slice(-6)
+            const retryRandom = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
+            const retryEmployeeNumber = `EMP${retryTimestamp}${retryRandom}`
+
+            const { data: retryStaff, error: retryError } = await serviceClient
+              .from('staff')
+              .insert({
+                tenant_id: invitation.tenant_id,
+                user_id: user.id,
+                employee_number: retryEmployeeNumber,
+                first_name,
+                last_name,
+                email: profile?.email || user.email || null,
+                phone: profile?.phone || null,
+                status: 'active',
+              })
+              .select('id, employee_number')
+              .single()
+
+            if (retryError) {
+              console.error('Error creating staff record (retry, existing membership):', retryError)
+              console.error('Retry error details:', JSON.stringify({
+                code: retryError.code,
+                message: retryError.message,
+                details: retryError.details,
+                hint: retryError.hint,
+              }, null, 2))
+            } else {
+              console.log('✅ Successfully created staff record on retry (existing membership):', retryStaff)
+            }
+          }
+        } else {
+          console.log('✅ Successfully created staff record (existing membership):', staff)
+        }
       }
     }
 
