@@ -59,9 +59,12 @@ export function useWeekShifts(weekStart: Date, filters?: {
     message: string
   }>>([])
 
-  const fetchShifts = useCallback(async () => {
+  const fetchShifts = useCallback(async (isRefetch = false) => {
     try {
-      setLoading(true)
+      // Only set loading to true on initial load, not on refetch
+      if (!isRefetch) {
+        setLoading(true)
+      }
       setError(null)
 
       // Format weekStart as YYYY-MM-DD
@@ -90,7 +93,9 @@ export function useWeekShifts(weekStart: Date, filters?: {
       console.error('Error fetching shifts:', err)
       setError(err.message || 'Failed to load shifts')
     } finally {
-      setLoading(false)
+      if (!isRefetch) {
+        setLoading(false)
+      }
     }
   }, [weekStart, filters?.locationId, filters?.staffId, filters?.status, filters?.includeCancelled])
 
@@ -104,6 +109,6 @@ export function useWeekShifts(weekStart: Date, filters?: {
     loading,
     error,
     conflicts,
-    refetch: fetchShifts,
+    refetch: () => fetchShifts(true), // Pass isRefetch=true to avoid loading state
   }
 }
