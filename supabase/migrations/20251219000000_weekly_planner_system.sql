@@ -87,6 +87,8 @@ CREATE POLICY shift_audit_log_select_policy_staff ON shift_audit_log
 DROP POLICY IF EXISTS shifts_update_policy_staff ON shifts;
 
 -- Create new staff update policy that checks tenant setting
+-- Note: Status change validation is enforced in API layer, not RLS
+-- RLS only checks that tenant setting allows staff updates
 CREATE POLICY shifts_update_policy_staff ON shifts
     FOR UPDATE
     USING (
@@ -99,11 +101,6 @@ CREATE POLICY shifts_update_policy_staff ON shifts
             WHERE tenant_settings.tenant_id = shifts.tenant_id
             AND tenant_settings.staff_can_accept_decline_shifts = true
         )
-        -- Only allow status changes: published -> confirmed or published -> cancelled
-        AND (
-            (OLD.status = 'published' AND NEW.status IN ('confirmed', 'cancelled'))
-            OR (OLD.status = NEW.status) -- Allow no status change (for other field updates if needed)
-        )
     )
     WITH CHECK (
         public.user_has_membership(auth.uid(), tenant_id)
@@ -114,11 +111,6 @@ CREATE POLICY shifts_update_policy_staff ON shifts
             SELECT 1 FROM tenant_settings
             WHERE tenant_settings.tenant_id = shifts.tenant_id
             AND tenant_settings.staff_can_accept_decline_shifts = true
-        )
-        -- Only allow status changes: published -> confirmed or published -> cancelled
-        AND (
-            (OLD.status = 'published' AND NEW.status IN ('confirmed', 'cancelled'))
-            OR (OLD.status = NEW.status) -- Allow no status change (for other field updates if needed)
         )
     );
 
@@ -153,8 +145,9 @@ CREATE TRIGGER trigger_create_tenant_settings
     EXECUTE FUNCTION create_tenant_settings_on_tenant_insert();
 
 -- 9. Add composite index for week view queries (performance optimization)
-CREATE INDEX IF NOT EXISTS idx_shifts_tenant_week ON shifts(tenant_id, start_time)
-WHERE start_time >= CURRENT_DATE - INTERVAL '30 days';
+-- Note: Partial index with date filter removed - CURRENT_DATE is not immutable
+-- Full index on (tenant_id, start_time) provides good performance for week queries
+CREATE INDEX IF NOT EXISTS idx_shifts_tenant_week ON shifts(tenant_id, start_time);
 
 -- 10. Add index for availability queries
 CREATE INDEX IF NOT EXISTS idx_availability_staff_day ON availability(staff_id, day_of_week);
