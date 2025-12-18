@@ -14,6 +14,8 @@ interface ShiftBlockProps {
   onContextMenu?: (e: React.MouseEvent) => void
   isSelected?: boolean
   hasConflict?: boolean
+  animateSettle?: boolean // Subtle settle animation on successful drop
+  animateConflict?: boolean // Pulse/shake on conflict rollback
 }
 
 const statusColors = {
@@ -33,6 +35,8 @@ export default function ShiftBlock({
   onContextMenu,
   isSelected = false,
   hasConflict = false,
+  animateSettle = false,
+  animateConflict = false,
 }: ShiftBlockProps) {
   const timeStr = `${formatTimeInTimezone(shift.start_time, timezone)} - ${formatTimeInTimezone(shift.end_time, timezone)}`
   const locationName = shift.location?.name || 'Unknown location'
@@ -85,6 +89,8 @@ export default function ShiftBlock({
           ${hasConflict ? 'border-red-500' : ''}
           ${borderStyle}
           ${opacity}
+          ${animateSettle ? 'animate-[settle_150ms_ease-out]' : ''}
+          ${animateConflict ? 'animate-[pulse_300ms_ease-in-out_2,shake_300ms_ease-in-out]' : ''}
         `}
         style={
           useRoleColors

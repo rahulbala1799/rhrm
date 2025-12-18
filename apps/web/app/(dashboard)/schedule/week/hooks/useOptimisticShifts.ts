@@ -1,10 +1,14 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { Shift } from '@/lib/schedule/types'
 import { ShiftUpdateError } from '@/lib/schedule/types'
-import { useWeekShifts } from './useWeekShifts'
+import { useWeekShiftsSWR } from './useWeekShiftsSWR'
+import { useTenantId } from '../../hooks/useTenantId'
+import { prefetchAdjacentWeeks, cancelPrefetch } from '../../hooks/usePrefetch'
 import { updateShiftViaAPI, createShiftViaAPI, deleteShiftViaAPI } from '@/lib/schedule/shift-updates'
+import { mutate } from 'swr'
+import { getWeekCacheKey, CacheFilters } from '../../hooks/useScheduleCache'
 
 function generateTempId(): string {
   return `temp_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`
@@ -31,10 +35,59 @@ export function useOptimisticShifts(
     includeCancelled?: boolean
   }
 ) {
-  const { shifts, weekEnd, loading, error, conflicts, refetch } = useWeekShifts(weekStart, filters)
+  const tenantId = useTenantId()
+  const cacheFilters: CacheFilters | undefined = filters ? {
+    locationId: filters.locationId,
+    staffId: filters.staffId,
+    status: filters.status,
+    includeCancelled: filters.includeCancelled,
+  } : undefined
+
+  const { shifts, weekEnd, loading, error, conflicts, refetch } = useWeekShiftsSWR(
+    weekStart,
+    tenantId,
+    cacheFilters
+  )
+  
   const [optimisticShifts, setOptimisticShifts] = useState<OptimisticShift[]>([])
   const [syncing, setSyncing] = useState(false)
   const pendingMutationsRef = useRef<Map<string, PendingMutation>>(new Map())
+
+  // Prefetch adjacent weeks on idle
+  useEffect(() => {
+    if (!tenantId) return
+    
+    const prefetch = async () => {
+      await prefetchAdjacentWeeks(
+        weekStart,
+        tenantId,
+        cacheFilters,
+        async (targetWeekStart) => {
+          // Prefetch function - fetch and cache the data
+          const weekStartStr = targetWeekStart.toISOString().split('T')[0]
+          const params = new URLSearchParams()
+          params.append('weekStart', weekStartStr)
+          if (cacheFilters?.locationId) params.append('locationId', cacheFilters.locationId)
+          if (cacheFilters?.staffId) params.append('staffId', cacheFilters.staffId)
+          if (cacheFilters?.status) params.append('status', cacheFilters.status)
+          if (cacheFilters?.includeCancelled) params.append('includeCancelled', 'true')
+          
+          const response = await fetch(`/api/schedule/week?${params}`)
+          if (response.ok) {
+            const data = await response.json()
+            const key = getWeekCacheKey(tenantId, targetWeekStart, cacheFilters)
+            mutate(key, data, false) // Cache without revalidation
+          }
+        }
+      )
+    }
+    
+    prefetch()
+    
+    return () => {
+      cancelPrefetch()
+    }
+  }, [weekStart, tenantId, cacheFilters])
 
   // Merge real shifts with optimistic shifts
   const mergedShifts = useCallback((): Shift[] => {
@@ -141,8 +194,11 @@ export function useOptimisticShifts(
 
       pendingMutationsRef.current.delete(tempId)
       
-      // Refetch in background
-      refetch()
+      // Invalidate cache and refetch in background (silent)
+      if (tenantId) {
+        const key = getWeekCacheKey(tenantId, weekStart, cacheFilters)
+        mutate(key, undefined, { revalidate: true })
+      }
       
       return realShift
     } catch (err) {
@@ -155,7 +211,7 @@ export function useOptimisticShifts(
     } finally {
       setSyncing(false)
     }
-  }, [refetch])
+  }, [weekStart, tenantId, cacheFilters])
 
   const updateShift = useCallback(async (shiftId: string, updates: Partial<Shift>): Promise<Shift> => {
     const originalShift = shifts.find((s) => s.id === shiftId)
@@ -196,8 +252,11 @@ export function useOptimisticShifts(
 
       pendingMutationsRef.current.delete(shiftId)
       
-      // Refetch in background
-      refetch()
+      // Invalidate cache and refetch in background (silent)
+      if (tenantId) {
+        const key = getWeekCacheKey(tenantId, weekStart, cacheFilters)
+        mutate(key, undefined, { revalidate: true })
+      }
       
       return realShift
     } catch (err) {
@@ -210,7 +269,7 @@ export function useOptimisticShifts(
     } finally {
       setSyncing(false)
     }
-  }, [shifts, refetch])
+  }, [shifts, weekStart, tenantId, cacheFilters])
 
   const deleteShift = useCallback(async (shiftId: string): Promise<void> => {
     const originalShift = shifts.find((s) => s.id === shiftId)
@@ -235,8 +294,11 @@ export function useOptimisticShifts(
 
       pendingMutationsRef.current.delete(shiftId)
       
-      // Refetch in background
-      refetch()
+      // Invalidate cache and refetch in background (silent)
+      if (tenantId) {
+        const key = getWeekCacheKey(tenantId, weekStart, cacheFilters)
+        mutate(key, undefined, { revalidate: true })
+      }
     } catch (err) {
       // Revert: add back original shift
       if (originalShift) {
@@ -249,7 +311,7 @@ export function useOptimisticShifts(
     } finally {
       setSyncing(false)
     }
-  }, [shifts, refetch])
+  }, [shifts, weekStart, tenantId, cacheFilters])
 
   const moveShift = useCallback(async (
     shiftId: string,

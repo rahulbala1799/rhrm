@@ -6,6 +6,9 @@ import { Shift } from '@/lib/schedule/types'
 import ShiftBlock from './ShiftBlock'
 import ShiftContextMenu from './ShiftContextMenu'
 import { applyTimeToDate } from '@/lib/schedule/timezone-utils'
+import { normalizeTimeForCommit } from '@/lib/schedule/shift-updates'
+import { DragController } from '../utils/dragController'
+import './shift-animations.css'
 
 interface DailyCanvasProps {
   date: Date
@@ -86,34 +89,11 @@ export default function DailyCanvas({
   selectedShiftIds = [],
   onSelectionChange,
 }: DailyCanvasProps) {
-  const [draggingShift, setDraggingShift] = useState<{
-    shiftId: string
-    startX: number
-    startY: number
-    originalStart: Date
-    originalEnd: Date
-    originalStaffId: string
-  } | null>(null)
-  const [resizingShift, setResizingShift] = useState<{
-    shiftId: string
-    edge: 'left' | 'right'
-    startX: number
-    originalStart: Date
-    originalEnd: Date
-  } | null>(null)
-  const [creatingShift, setCreatingShift] = useState<{
-    staffId: string
-    startX: number
-    startTime: Date
-  } | null>(null)
-  const [dragPreview, setDragPreview] = useState<{
-    staffId: string
-    startTime: Date
-    endTime: Date
-    isValid: boolean
-    reason?: string
-    snapLine?: number
-  } | null>(null)
+  // CRITICAL: These are only for tracking active drag state (not pointer position)
+  // Pointer position is stored in dragControllerRef, not React state
+  const [isDragging, setIsDragging] = useState(false)
+  const [isResizing, setIsResizing] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
   const [hoveredStaffId, setHoveredStaffId] = useState<string | null>(null)
   const [invalidDropMessage, setInvalidDropMessage] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<{
@@ -121,8 +101,24 @@ export default function DailyCanvas({
     y: number
     shift: Shift
   } | null>(null)
+  const [settlingShiftId, setSettlingShiftId] = useState<string | null>(null)
+  const [conflictShiftId, setConflictShiftId] = useState<string | null>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const gridScrollRef = useRef<HTMLDivElement>(null)
+  
+  // CRITICAL: Drag controller uses refs, not React state for pointer position
+  const dragControllerRef = useRef(new DragController())
+  
+  // Only use React state for dragPreview (visual feedback) - not pointer position
+  const [dragPreview, setDragPreview] = useState<{
+    staffId: string
+    startTime: Date
+    endTime: Date
+    isValid: boolean
+    reason?: string
+    snapLine?: number
+    snapTimeLabel?: string
+  } | null>(null)
 
   // Group shifts by staff
   const shiftsByStaff = useMemo(() => {
@@ -209,7 +205,7 @@ export default function DailyCanvas({
   // Handle row overlay mouse down (for creating shifts)
   const handleRowMouseDown = useCallback((e: React.MouseEvent, staffId: string) => {
     if (e.button !== 0) return // Only left click
-    if (draggingShift || resizingShift) return
+    if (isDragging || isResizing) return // Interaction lock: no create during drag/resize
     if (e.target !== e.currentTarget) return // Only if clicking directly on overlay
 
     const canvasRect = canvasRef.current?.getBoundingClientRect()
@@ -219,12 +215,12 @@ export default function DailyCanvas({
     const startTime = pixelToTime(startX)
     const snappedStart = snapTime(startTime)
 
-    setCreatingShift({
-      staffId,
-      startX,
-      startTime: snappedStart,
-    })
-  }, [pixelToTime, snapTime, draggingShift, resizingShift])
+    dragControllerRef.current.startCreate(
+      { staffId, startX, startTime: snappedStart },
+      (preview) => setDragPreview(preview)
+    )
+    setIsCreating(true)
+  }, [pixelToTime, snapTime, isDragging, isResizing])
 
   // Handle shift click (for selection)
   const handleShiftClick = useCallback((e: React.MouseEvent, shift: Shift) => {
@@ -252,9 +248,35 @@ export default function DailyCanvas({
     }
   }, [onSelectionChange])
 
-  // Mouse move/up handlers
+  // Escape clears selection, Delete removes selected shifts
   useEffect(() => {
-    if (!creatingShift && !draggingShift && !resizingShift) return
+    if (!onSelectionChange || !onDeleteShift) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle if we're in an input/textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return
+      }
+
+      if (e.key === 'Escape' && selectedShiftIds.length > 0 && !isCreating && !isDragging && !isResizing) {
+        e.preventDefault()
+        onSelectionChange([])
+      } else if (e.key === 'Delete' && selectedShiftIds.length > 0 && !isCreating && !isDragging && !isResizing) {
+        e.preventDefault()
+        if (confirm(`Delete ${selectedShiftIds.length} shift${selectedShiftIds.length > 1 ? 's' : ''}?`)) {
+          selectedShiftIds.forEach(shiftId => onDeleteShift?.(shiftId))
+          onSelectionChange([])
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedShiftIds, onSelectionChange, onDeleteShift, isCreating, isDragging, isResizing])
+
+  // Mouse move/up handlers with RAF throttling
+  useEffect(() => {
+    if (!isCreating && !isDragging && !isResizing) return
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!canvasRef.current) return
@@ -262,189 +284,244 @@ export default function DailyCanvas({
       const currentX = e.clientX - canvasRect.left
       const currentY = e.clientY - canvasRect.top
 
-      if (creatingShift) {
-        const deltaX = currentX - creatingShift.startX
-        const slots = Math.max(1, Math.round(deltaX / SLOT_WIDTH_PX))
-        const endTime = new Date(creatingShift.startTime)
-        endTime.setMinutes(endTime.getMinutes() + slots * MINUTES_PER_SLOT)
+      // Compute preview via drag controller (RAF-throttled)
+      dragControllerRef.current.update(
+        currentX,
+        currentY,
+        e.shiftKey,
+        (state, x, y, shiftKey) => {
+          // State is already passed as first parameter - check which type it is
+          if ('staffId' in state && 'startTime' in state) {
+            // Create state
+            const createState = state as { staffId: string; startX: number; startTime: Date }
+            const deltaX = x - createState.startX
+            const slots = Math.max(1, Math.round(deltaX / SLOT_WIDTH_PX))
+            const endTime = new Date(createState.startTime)
+            endTime.setMinutes(endTime.getMinutes() + slots * MINUTES_PER_SLOT)
 
-        // Clip at midnight
-        const midnight = new Date(date)
-        midnight.setHours(23, 59, 59, 999)
-        const clippedEnd = endTime > midnight ? midnight : endTime
+            // Clip at midnight
+            const midnight = new Date(date)
+            midnight.setHours(23, 59, 59, 999)
+            const clippedEnd = endTime > midnight ? midnight : endTime
 
-        const snappedEnd = snapTime(fromZonedTime(clippedEnd, timezone))
-        const overlap = checkOverlap(creatingShift.staffId, creatingShift.startTime, snappedEnd)
+            const snappedEnd = snapTime(fromZonedTime(clippedEnd, timezone))
+            const overlap = checkOverlap(createState.staffId, createState.startTime, snappedEnd)
 
-        // Check for snap line
-        let snapLine: number | undefined
-        if (snapEnabled) {
-          const snappedX = timeToPixel(snappedEnd)
-          if (Math.abs(currentX - snappedX) < 5) {
-            snapLine = snappedX
+            // Check for snap line
+            let snapLine: number | undefined
+            let snapTimeLabel: string | undefined
+            if (snapEnabled) {
+              const snappedX = timeToPixel(snappedEnd)
+              if (Math.abs(x - snappedX) < 5) {
+                snapLine = snappedX
+                snapTimeLabel = format(toZonedTime(snappedEnd, timezone), 'HH:mm')
+              }
+            }
+
+            return {
+              staffId: createState.staffId,
+              startTime: createState.startTime,
+              endTime: snappedEnd,
+              isValid: !overlap.hasOverlap,
+              reason: overlap.reason,
+              snapLine,
+              snapTimeLabel,
+            }
+          } else if ('shiftId' in state && 'startY' in state) {
+            // Drag state
+            const dragState = state as { shiftId: string; startX: number; startY: number; originalStart: Date; originalEnd: Date; originalStaffId: string }
+            const deltaX = x - dragState.startX
+            const deltaY = y - dragState.startY
+            const shiftHeight = STAFF_ROW_HEIGHT
+
+            // Find target staff row
+            const targetStaffIndex = Math.round(deltaY / shiftHeight)
+            const staffIndex = sortedStaff.findIndex((s: { id: string }) => s.id === dragState.originalStaffId)
+            const newStaffIndex = staffIndex + targetStaffIndex
+            const targetStaff = newStaffIndex >= 0 && newStaffIndex < sortedStaff.length
+              ? sortedStaff[newStaffIndex]
+              : sortedStaff[staffIndex]
+
+            // Check if Shift key is held for staff change
+            const canChangeStaff = shiftKey && targetStaff.id !== dragState.originalStaffId
+
+            // Calculate new time
+            const slotWidth = SLOT_WIDTH_PX
+            const slots = Math.round(deltaX / slotWidth)
+            const minutesDelta = slots * MINUTES_PER_SLOT
+            const newStart = new Date(dragState.originalStart)
+            newStart.setMinutes(newStart.getMinutes() + minutesDelta)
+            const duration = dragState.originalEnd.getTime() - dragState.originalStart.getTime()
+            const newEnd = new Date(newStart.getTime() + duration)
+
+            // Clip at midnight
+            const midnight = new Date(date)
+            midnight.setHours(23, 59, 59, 999)
+            const clippedEnd = newEnd > midnight ? midnight : newEnd
+            const clippedStart = clippedEnd.getTime() - duration < date.getTime()
+              ? new Date(date.getTime())
+              : new Date(clippedEnd.getTime() - duration)
+
+            const snappedStart = snapTime(fromZonedTime(clippedStart, timezone))
+            const snappedEnd = snapTime(fromZonedTime(clippedEnd, timezone))
+
+            const finalStaffId = canChangeStaff ? targetStaff.id : dragState.originalStaffId
+            const overlap = checkOverlap(finalStaffId, snappedStart, snappedEnd, dragState.shiftId)
+
+            // Check for snap line
+            let snapLine: number | undefined
+            let snapTimeLabel: string | undefined
+            if (snapEnabled) {
+              const snappedX = timeToPixel(snappedStart)
+              if (Math.abs(x - snappedX) < 5) {
+                snapLine = snappedX
+                snapTimeLabel = format(toZonedTime(snappedStart, timezone), 'HH:mm')
+              }
+            }
+
+            return {
+              staffId: finalStaffId,
+              startTime: snappedStart,
+              endTime: snappedEnd,
+              isValid: !overlap.hasOverlap,
+              reason: overlap.reason,
+              snapLine,
+              snapTimeLabel,
+            }
+          } else if ('edge' in state) {
+            // Resize state
+            const resizeState = state as { shiftId: string; edge: 'left' | 'right'; startX: number; originalStart: Date; originalEnd: Date }
+            const deltaX = x - resizeState.startX
+            const slotWidth = SLOT_WIDTH_PX
+            const slots = Math.round(deltaX / slotWidth)
+            const minutesDelta = slots * MINUTES_PER_SLOT
+
+            let newStart = new Date(resizeState.originalStart)
+            let newEnd = new Date(resizeState.originalEnd)
+
+            if (resizeState.edge === 'left') {
+              newStart.setMinutes(newStart.getMinutes() + minutesDelta)
+              if (newStart >= newEnd) {
+                newStart = new Date(newEnd.getTime() - 15 * 60 * 1000) // Minimum 15 minutes
+              }
+            } else {
+              newEnd.setMinutes(newEnd.getMinutes() + minutesDelta)
+              if (newEnd <= newStart) {
+                newEnd = new Date(newStart.getTime() + 15 * 60 * 1000) // Minimum 15 minutes
+              }
+              // Clip at midnight
+              const midnight = new Date(date)
+              midnight.setHours(23, 59, 59, 999)
+              if (newEnd > midnight) {
+                newEnd = midnight
+              }
+            }
+
+            const snappedStart = snapTime(fromZonedTime(newStart, timezone))
+            const snappedEnd = snapTime(fromZonedTime(newEnd, timezone))
+            const shift = shifts.find((s: Shift) => s.id === resizeState.shiftId)
+            const overlap = checkOverlap(shift?.staff_id || '', snappedStart, snappedEnd, resizeState.shiftId)
+
+            // Check for snap line
+            let snapLine: number | undefined
+            let snapTimeLabel: string | undefined
+            if (snapEnabled) {
+              const snappedX = timeToPixel(resizeState.edge === 'left' ? snappedStart : snappedEnd)
+              if (Math.abs(x - snappedX) < 5) {
+                snapLine = snappedX
+                snapTimeLabel = format(toZonedTime(resizeState.edge === 'left' ? snappedStart : snappedEnd, timezone), 'HH:mm')
+              }
+            }
+
+            return {
+              staffId: shift?.staff_id || '',
+              startTime: snappedStart,
+              endTime: snappedEnd,
+              isValid: !overlap.hasOverlap,
+              reason: overlap.reason,
+              snapLine,
+              snapTimeLabel,
+            }
           }
+          return null
         }
-
-        setDragPreview({
-          staffId: creatingShift.staffId,
-          startTime: creatingShift.startTime,
-          endTime: snappedEnd,
-          isValid: !overlap.hasOverlap,
-          reason: overlap.reason,
-          snapLine,
-        })
-      } else if (draggingShift) {
-        const deltaX = currentX - draggingShift.startX
-        const deltaY = currentY - draggingShift.startY
-        const shiftHeight = STAFF_ROW_HEIGHT
-
-        // Find target staff row
-        const targetStaffIndex = Math.round(deltaY / shiftHeight)
-        const staffIndex = sortedStaff.findIndex(s => s.id === draggingShift.originalStaffId)
-        const newStaffIndex = staffIndex + targetStaffIndex
-        const targetStaff = newStaffIndex >= 0 && newStaffIndex < sortedStaff.length
-          ? sortedStaff[newStaffIndex]
-          : sortedStaff[staffIndex]
-
-        // Check if Shift key is held for staff change
-        const isShiftKeyHeld = e.shiftKey
-        const canChangeStaff = isShiftKeyHeld && targetStaff.id !== draggingShift.originalStaffId
-
-        // Calculate new time
-        const slotWidth = SLOT_WIDTH_PX
-        const slots = Math.round(deltaX / slotWidth)
-        const minutesDelta = slots * MINUTES_PER_SLOT
-        const newStart = new Date(draggingShift.originalStart)
-        newStart.setMinutes(newStart.getMinutes() + minutesDelta)
-        const duration = draggingShift.originalEnd.getTime() - draggingShift.originalStart.getTime()
-        const newEnd = new Date(newStart.getTime() + duration)
-
-        // Clip at midnight
-        const midnight = new Date(date)
-        midnight.setHours(23, 59, 59, 999)
-        const clippedEnd = newEnd > midnight ? midnight : newEnd
-        const clippedStart = clippedEnd.getTime() - duration < date.getTime()
-          ? new Date(date.getTime())
-          : new Date(clippedEnd.getTime() - duration)
-
-        const snappedStart = snapTime(fromZonedTime(clippedStart, timezone))
-        const snappedEnd = snapTime(fromZonedTime(clippedEnd, timezone))
-
-        const finalStaffId = canChangeStaff ? targetStaff.id : draggingShift.originalStaffId
-        const overlap = checkOverlap(finalStaffId, snappedStart, snappedEnd, draggingShift.shiftId)
-
-        // Check for snap line
-        let snapLine: number | undefined
-        if (snapEnabled) {
-          const snappedX = timeToPixel(snappedStart)
-          if (Math.abs(currentX - snappedX) < 5) {
-            snapLine = snappedX
-          }
-        }
-
-        setDragPreview({
-          staffId: finalStaffId,
-          startTime: snappedStart,
-          endTime: snappedEnd,
-          isValid: !overlap.hasOverlap,
-          reason: overlap.reason,
-          snapLine,
-        })
-      } else if (resizingShift) {
-        const deltaX = currentX - resizingShift.startX
-        const slotWidth = SLOT_WIDTH_PX
-        const slots = Math.round(deltaX / slotWidth)
-        const minutesDelta = slots * MINUTES_PER_SLOT
-
-        let newStart = new Date(resizingShift.originalStart)
-        let newEnd = new Date(resizingShift.originalEnd)
-
-        if (resizingShift.edge === 'left') {
-          newStart.setMinutes(newStart.getMinutes() + minutesDelta)
-          if (newStart >= newEnd) {
-            newStart = new Date(newEnd.getTime() - 15 * 60 * 1000) // Minimum 15 minutes
-          }
-        } else {
-          newEnd.setMinutes(newEnd.getMinutes() + minutesDelta)
-          if (newEnd <= newStart) {
-            newEnd = new Date(newStart.getTime() + 15 * 60 * 1000) // Minimum 15 minutes
-          }
-          // Clip at midnight
-          const midnight = new Date(date)
-          midnight.setHours(23, 59, 59, 999)
-          if (newEnd > midnight) {
-            newEnd = midnight
-          }
-        }
-
-        const snappedStart = snapTime(fromZonedTime(newStart, timezone))
-        const snappedEnd = snapTime(fromZonedTime(newEnd, timezone))
-        const shift = shifts.find(s => s.id === resizingShift.shiftId)
-        const overlap = checkOverlap(shift?.staff_id || '', snappedStart, snappedEnd, resizingShift.shiftId)
-
-        // Check for snap line
-        let snapLine: number | undefined
-        if (snapEnabled) {
-          const snappedX = timeToPixel(resizingShift.edge === 'left' ? snappedStart : snappedEnd)
-          if (Math.abs(currentX - snappedX) < 5) {
-            snapLine = snappedX
-          }
-        }
-
-        setDragPreview({
-          staffId: shift?.staff_id || '',
-          startTime: snappedStart,
-          endTime: snappedEnd,
-          isValid: !overlap.hasOverlap,
-          reason: overlap.reason,
-          snapLine,
-        })
-      }
-    }
+      )
 
     const handleMouseUp = () => {
-      if (creatingShift && dragPreview) {
-        if (dragPreview.isValid) {
-          onShiftCreate?.(dragPreview.staffId, dragPreview.startTime, dragPreview.endTime)
-        } else {
-          setInvalidDropMessage(dragPreview.reason || 'Cannot create shift')
-          setTimeout(() => setInvalidDropMessage(null), 800)
-        }
-        setCreatingShift(null)
-        setDragPreview(null)
-      } else if (draggingShift && dragPreview) {
-        if (dragPreview.isValid) {
-          onShiftMove?.(draggingShift.shiftId, dragPreview.staffId, dragPreview.startTime, dragPreview.endTime)
-        } else {
-          setInvalidDropMessage(dragPreview.reason || 'Cannot move shift')
-          setTimeout(() => setInvalidDropMessage(null), 800)
-        }
-        setDraggingShift(null)
-        setDragPreview(null)
-      } else if (resizingShift && dragPreview) {
-        if (dragPreview.isValid) {
-          onShiftResize?.(resizingShift.shiftId, dragPreview.startTime, dragPreview.endTime)
-        } else {
-          setInvalidDropMessage(dragPreview.reason || 'Cannot resize shift')
-          setTimeout(() => setInvalidDropMessage(null), 800)
-        }
-        setResizingShift(null)
+      const result = dragControllerRef.current.endDrag()
+      if (!result || !dragPreview) return
+
+      if (result.type === 'create' && dragPreview.isValid) {
+        // CRITICAL: Normalize time before commit
+        const normalizedStart = normalizeTimeForCommit(dragPreview.startTime, timezone, MINUTES_PER_SLOT)
+        const normalizedEnd = normalizeTimeForCommit(dragPreview.endTime, timezone, MINUTES_PER_SLOT)
+        onShiftCreate?.(dragPreview.staffId, new Date(normalizedStart), new Date(normalizedEnd))
+        // Settle animation will be handled by the new shift appearing
+      } else if (result.type === 'create') {
+        setInvalidDropMessage(dragPreview.reason || 'Cannot create shift')
+        setTimeout(() => setInvalidDropMessage(null), 800)
+      } else if (result.type === 'drag' && dragPreview.isValid) {
+        // CRITICAL: Normalize time before commit
+        const normalizedStart = normalizeTimeForCommit(dragPreview.startTime, timezone, MINUTES_PER_SLOT)
+        const normalizedEnd = normalizeTimeForCommit(dragPreview.endTime, timezone, MINUTES_PER_SLOT)
+        onShiftMove?.(result.state.shiftId, dragPreview.staffId, new Date(normalizedStart), new Date(normalizedEnd))
+        // Settle animation
+        setSettlingShiftId(result.state.shiftId)
+        setTimeout(() => setSettlingShiftId(null), 150)
+      } else if (result.type === 'drag') {
+        // Conflict rollback - shake animation
+        setConflictShiftId(result.state.shiftId)
+        setTimeout(() => setConflictShiftId(null), 300)
+        setInvalidDropMessage(dragPreview.reason || 'Cannot move shift')
+        setTimeout(() => setInvalidDropMessage(null), 800)
+      } else if (result.type === 'resize' && dragPreview.isValid) {
+        // CRITICAL: Normalize time before commit
+        const normalizedStart = normalizeTimeForCommit(dragPreview.startTime, timezone, MINUTES_PER_SLOT)
+        const normalizedEnd = normalizeTimeForCommit(dragPreview.endTime, timezone, MINUTES_PER_SLOT)
+        onShiftResize?.(result.state.shiftId, new Date(normalizedStart), new Date(normalizedEnd))
+        // Settle animation
+        setSettlingShiftId(result.state.shiftId)
+        setTimeout(() => setSettlingShiftId(null), 150)
+      } else if (result.type === 'resize') {
+        // Conflict rollback - shake animation
+        setConflictShiftId(result.state.shiftId)
+        setTimeout(() => setConflictShiftId(null), 300)
+        setInvalidDropMessage(dragPreview.reason || 'Cannot resize shift')
+        setTimeout(() => setInvalidDropMessage(null), 800)
+      }
+
+      setIsCreating(false)
+      setIsDragging(false)
+      setIsResizing(false)
+      setDragPreview(null)
+    }
+
+    // CRITICAL: Interaction lock - Escape cancels drag immediately
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && (isCreating || isDragging || isResizing)) {
+        dragControllerRef.current.cancel()
+        setIsCreating(false)
+        setIsDragging(false)
+        setIsResizing(false)
         setDragPreview(null)
       }
     }
 
     window.addEventListener('mousemove', handleMouseMove)
     window.addEventListener('mouseup', handleMouseUp)
+    window.addEventListener('keydown', handleEscape)
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
+      window.removeEventListener('keydown', handleEscape)
     }
-  }, [creatingShift, draggingShift, resizingShift, dragPreview, pixelToTime, snapTime, timezone, date, checkOverlap, shifts, onShiftCreate, onShiftMove, onShiftResize, sortedStaff, snapEnabled, timeToPixel])
+  }, [isCreating, isDragging, isResizing, dragPreview, pixelToTime, snapTime, timezone, date, checkOverlap, shifts, onShiftCreate, onShiftMove, onShiftResize, sortedStaff, snapEnabled, timeToPixel, shiftsByStaff])
 
   // Handle shift drag start
   const handleShiftDragStart = useCallback((e: React.MouseEvent, shift: Shift) => {
     if (e.button !== 0) return
+    if (isCreating || isResizing) return // Interaction lock: no drag during create/resize
     e.preventDefault()
     e.stopPropagation()
 
@@ -457,19 +534,24 @@ export default function DailyCanvas({
     const originalEnd = new Date(shift.end_time)
     const originalStaffId = shift.staff_id
 
-    setDraggingShift({
-      shiftId: shift.id,
-      startX,
-      startY,
-      originalStart,
-      originalEnd,
-      originalStaffId,
-    })
-  }, [])
+    dragControllerRef.current.startDrag(
+      {
+        shiftId: shift.id,
+        startX,
+        startY,
+        originalStart,
+        originalEnd,
+        originalStaffId,
+      },
+      (preview) => setDragPreview(preview)
+    )
+    setIsDragging(true)
+  }, [isCreating, isResizing])
 
   // Handle shift resize start
   const handleShiftResizeStart = useCallback((e: React.MouseEvent, shift: Shift, edge: 'left' | 'right') => {
     if (e.button !== 0) return
+    if (isCreating || isDragging) return // Interaction lock: no resize during create/drag
     e.preventDefault()
     e.stopPropagation()
 
@@ -480,14 +562,18 @@ export default function DailyCanvas({
     const originalStart = new Date(shift.start_time)
     const originalEnd = new Date(shift.end_time)
 
-    setResizingShift({
-      shiftId: shift.id,
-      edge,
-      startX,
-      originalStart,
-      originalEnd,
-    })
-  }, [])
+    dragControllerRef.current.startResize(
+      {
+        shiftId: shift.id,
+        edge,
+        startX,
+        originalStart,
+        originalEnd,
+      },
+      (preview) => setDragPreview(preview)
+    )
+    setIsResizing(true)
+  }, [isCreating, isDragging])
 
   // Get shift position and dimensions
   const getShiftLayout = useCallback((shift: Shift) => {
@@ -643,6 +729,8 @@ export default function DailyCanvas({
                             }}
                             isSelected={isShiftSelected}
                             hasConflict={hasConflict}
+                            animateSettle={settlingShiftId === shift.id}
+                            animateConflict={conflictShiftId === shift.id}
                           />
                         </div>
                       )
@@ -651,12 +739,22 @@ export default function DailyCanvas({
                     {/* Drag Preview */}
                     {dragPreview && dragPreview.staffId === staff.id && (
                       <>
-                        {/* Snap Line */}
+                        {/* Snap Line with Time Label */}
                         {dragPreview.snapLine !== undefined && (
-                          <div
-                            className="absolute top-0 bottom-0 w-0.5 bg-blue-500 z-30 pointer-events-none"
-                            style={{ left: `${dragPreview.snapLine}px` }}
-                          />
+                          <>
+                            <div
+                              className="absolute top-0 bottom-0 w-0.5 bg-blue-500 z-30 pointer-events-none"
+                              style={{ left: `${dragPreview.snapLine}px` }}
+                            />
+                            {dragPreview.snapTimeLabel && (
+                              <div
+                                className="absolute -top-6 left-0 px-1.5 py-0.5 text-xs bg-blue-600 text-white rounded whitespace-nowrap z-30 pointer-events-none"
+                                style={{ left: `${dragPreview.snapLine}px`, transform: 'translateX(-50%)' }}
+                              >
+                                {dragPreview.snapTimeLabel}
+                              </div>
+                            )}
+                          </>
                         )}
                         {/* Preview Block */}
                         <div
@@ -693,7 +791,7 @@ export default function DailyCanvas({
                     )}
 
                     {/* Empty Row Hint */}
-                    {!hasShifts && isHovered && !creatingShift && !draggingShift && (
+                    {!hasShifts && isHovered && !isCreating && !isDragging && (
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <div className="text-xs text-slate-400 bg-white/80 px-3 py-1 rounded border border-slate-200">
                           Drag to create shift

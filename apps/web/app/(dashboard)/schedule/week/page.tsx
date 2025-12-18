@@ -18,6 +18,10 @@ import { useOvertimeCalculations } from './hooks/useOvertimeCalculations'
 import { applyTimeToDate, toTenantTimezone } from '@/lib/schedule/timezone-utils'
 import { CloudArrowUpIcon, LockClosedIcon } from '@heroicons/react/24/outline'
 import BudgetViewErrorBoundary from './components/BudgetViewErrorBoundary'
+import { useOfflineDetection } from '../hooks/useOfflineDetection'
+import { useWindowFocusRefetch } from '../hooks/useWindowFocusRefetch'
+import { useUndoRedo } from '../day/hooks/useUndoRedo'
+import { normalizeTimeForCommit } from '@/lib/schedule/shift-updates'
 
 
 export default function WeekPlannerPage() {
@@ -52,6 +56,8 @@ export default function WeekPlannerPage() {
 
   const { settings } = useTenantSettings()
   const timezone = settings?.timezone || 'UTC'
+  const { isOffline } = useOfflineDetection()
+  const { addAction: addUndoAction } = useUndoRedo()
   
   // Budget view toggle
   const [budgetViewActive, setBudgetViewActive] = useBudgetViewToggle()
@@ -69,6 +75,9 @@ export default function WeekPlannerPage() {
     deleteShift,
     refetch,
   } = useOptimisticShifts(currentWeek)
+
+  // Window focus refetch (rate-limited)
+  useWindowFocusRefetch(refetch)
 
   // Fetch user role
   useEffect(() => {
@@ -225,15 +234,53 @@ export default function WeekPlannerPage() {
         newEndTime = applyTimeToDate(endDate, endHours, endMinutes, timezone)
       }
 
-      // applyTimeToDate already returns UTC ISO strings, use directly
-      const startTimeUTC = newStartTime
-      const endTimeUTC = newEndTime
+      // CRITICAL: Normalize time before commit
+      const normalizedStart = normalizeTimeForCommit(new Date(newStartTime), timezone, 15)
+      const normalizedEnd = normalizeTimeForCommit(new Date(newEndTime), timezone, 15)
+
+      const originalShift = shifts.find((s) => s.id === shiftId)
+      if (!originalShift) {
+        setToast({ message: 'Shift not found', type: 'error' })
+        return
+      }
 
       await updateShift(shiftId, {
         staff_id: targetStaffId,
-        start_time: startTimeUTC,
-        end_time: endTimeUTC,
+        start_time: normalizedStart,
+        end_time: normalizedEnd,
       })
+
+      // Add undo action
+      addUndoAction({
+        type: 'move',
+        shiftId,
+        previousState: {
+          staff_id: originalShift.staff_id,
+          start_time: originalShift.start_time,
+          end_time: originalShift.end_time,
+        },
+        newState: {
+          staff_id: targetStaffId,
+          start_time: normalizedStart,
+          end_time: normalizedEnd,
+        },
+        execute: async () => {
+          await updateShift(shiftId, {
+            staff_id: targetStaffId,
+            start_time: normalizedStart,
+            end_time: normalizedEnd,
+          })
+        },
+        reverse: async () => {
+          await updateShift(shiftId, {
+            staff_id: originalShift.staff_id,
+            start_time: originalShift.start_time,
+            end_time: originalShift.end_time,
+          })
+        },
+      })
+
+      // No success toast for implicit actions (drag)
     } catch (err) {
       const error = err as ShiftUpdateError
       if (error.code === 'OVERLAP') {
@@ -349,29 +396,31 @@ export default function WeekPlannerPage() {
       )}
 
       <div className="flex-1 overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-gray-500">Loading shifts...</div>
+        {/* Offline Indicator */}
+        {isOffline && (
+          <div className="bg-yellow-500 text-white px-4 py-2 text-sm text-center">
+            You're offline. Changes will sync when connection is restored.
           </div>
-        ) : (
-          <BudgetViewErrorBoundary>
-            <StaffRowScheduler
-              weekStart={currentWeek}
-              shifts={shifts}
-              staffList={staffList}
-              timezone={timezone}
-              conflicts={conflicts}
-              onShiftClick={handleShiftClick}
-              onCellClick={handleCellClick}
-              onShiftDrop={handleShiftDrop}
-              budgetViewActive={budgetViewActive && canViewBudget}
-              staffHourlyRates={staffHourlyRates}
-              isLoadingRates={isLoadingRates}
-              staffOvertimeConfigs={staffOvertimeConfigs}
-              payPeriodConfig={payPeriodConfig}
-            />
-          </BudgetViewErrorBoundary>
         )}
+
+        {/* CRITICAL: No loading state after first paint - SWR shows cached data immediately */}
+        <BudgetViewErrorBoundary>
+          <StaffRowScheduler
+            weekStart={currentWeek}
+            shifts={shifts}
+            staffList={staffList}
+            timezone={timezone}
+            conflicts={conflicts}
+            onShiftClick={handleShiftClick}
+            onCellClick={handleCellClick}
+            onShiftDrop={handleShiftDrop}
+            budgetViewActive={budgetViewActive && canViewBudget}
+            staffHourlyRates={staffHourlyRates}
+            isLoadingRates={isLoadingRates}
+            staffOvertimeConfigs={staffOvertimeConfigs}
+            payPeriodConfig={payPeriodConfig}
+          />
+        </BudgetViewErrorBoundary>
       </div>
 
       {/* Toast notification */}

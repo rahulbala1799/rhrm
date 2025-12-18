@@ -227,3 +227,50 @@ export function fromUtcIsoToTenantTz(isoString: string, timezone: string): Date 
   return toZonedTime(new Date(isoString), timezone)
 }
 
+/**
+ * Normalize time to snap increment and timezone rules before commit
+ * 
+ * CRITICAL: All drag/resize results MUST be normalized before commit.
+ * Server stores canonical timestamps; UI never stores "pixel-time" state.
+ * This prevents "09:00 → 08:59" drift bugs after repeated moves.
+ * 
+ * @param time - Date object (wall-clock time in tenant timezone)
+ * @param timezone - IANA timezone string
+ * @param snapIncrementMinutes - Snap increment (5, 10, or 15 minutes)
+ * @returns Normalized UTC ISO string
+ */
+export function normalizeTimeForCommit(
+  time: Date,
+  timezone: string,
+  snapIncrementMinutes: number = 15
+): string {
+  // Convert to tenant timezone
+  const zonedTime = toZonedTime(time, timezone)
+  
+  // Round to snap increment
+  const minutes = zonedTime.getMinutes()
+  const roundedMinutes = Math.round(minutes / snapIncrementMinutes) * snapIncrementMinutes
+  
+  // Create normalized date
+  const normalized = new Date(zonedTime)
+  normalized.setMinutes(roundedMinutes, 0, 0)
+  
+  // Convert back to UTC for API
+  return fromZonedTime(normalized, timezone).toISOString()
+}
+
+/**
+ * Normalize both start and end times for a shift
+ */
+export function normalizeShiftTimes(
+  startTime: Date,
+  endTime: Date,
+  timezone: string,
+  snapIncrementMinutes: number = 15
+): { startTime: string; endTime: string } {
+  return {
+    startTime: normalizeTimeForCommit(startTime, timezone, snapIncrementMinutes),
+    endTime: normalizeTimeForCommit(endTime, timezone, snapIncrementMinutes),
+  }
+}
+

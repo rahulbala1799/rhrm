@@ -1,7 +1,8 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useRef, useEffect, useState } from 'react'
 import { format, addDays, startOfWeek } from 'date-fns'
+import { FixedSizeList } from 'react-window'
 import { Shift } from '@/lib/schedule/types'
 import StaffRow from './StaffRow'
 import ColumnTotalsRow from './ColumnTotalsRow'
@@ -93,6 +94,20 @@ export default function StaffRowScheduler({
       }
     })
   }, [weekStart])
+
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerHeight, setContainerHeight] = useState(600)
+
+  useEffect(() => {
+    const updateHeight = () => {
+      if (containerRef.current) {
+        setContainerHeight(containerRef.current.clientHeight)
+      }
+    }
+    updateHeight()
+    window.addEventListener('resize', updateHeight)
+    return () => window.removeEventListener('resize', updateHeight)
+  }, [])
 
   // Calculate costs using rate history (for salary increases) and overtime if budget view is active
   // This hook fetches rate history and calculates costs per shift using the rate effective on that shift's date
@@ -208,45 +223,92 @@ export default function StaffRowScheduler({
         </div>
       </div>
 
-      {/* Scrollable grid body */}
-      <div className="flex-1 overflow-auto">
-        <div className="min-w-full">
-          {sortedStaff.map((staff) => {
-            const staffShiftsByDay = groupedShifts.get(staff.id) || new Map<number, Shift[]>()
-            const allStaffShifts = Array.from(staffShiftsByDay.values()).flat()
-            const overtimeCosts = budgetViewActive && overtimeShiftCosts.size > 0
-              ? allStaffShifts.map(shift => overtimeShiftCosts.get(shift.id)).filter(Boolean)
-              : []
-            return (
-              <StaffRow
-                key={staff.id}
-                staff={staff}
-                weekStart={weekStart}
-                timezone={timezone}
-                shiftsByDay={staffShiftsByDay}
-                conflicts={conflicts}
-                onShiftClick={onShiftClick}
-                onCellClick={onCellClick}
-                onDragStart={handleDragStart}
-                onDrop={handleDrop}
-                budgetViewActive={budgetViewActive}
-                staffHourlyRate={staffHourlyRates.get(staff.id) ?? null}
-                isLoadingRates={isLoadingRates}
-                overtimeShiftCosts={budgetViewActive ? overtimeShiftCosts : new Map()}
-              />
-            )
-          })}
-          
-          {/* Column totals row */}
-          {budgetViewActive && (
-            <ColumnTotalsRow
-              weekStart={weekStart}
-              dayTotals={dayTotals}
-              grandTotal={grandTotal}
-              isLoading={isLoadingRates}
-            />
-          )}
-        </div>
+      {/* Scrollable grid body - Virtualized if staff > 50 */}
+      <div ref={containerRef} className="flex-1 overflow-hidden">
+        {sortedStaff.length > 50 ? (
+          <FixedSizeList
+            height={containerHeight}
+            itemCount={sortedStaff.length + (budgetViewActive ? 1 : 0)}
+            itemSize={60}
+            width="100%"
+            className="virtualized-list"
+          >
+            {({ index, style }) => {
+              if (budgetViewActive && index === sortedStaff.length) {
+                return (
+                  <div style={style}>
+                    <ColumnTotalsRow
+                      weekStart={weekStart}
+                      dayTotals={dayTotals}
+                      grandTotal={grandTotal}
+                      isLoading={isLoadingRates}
+                    />
+                  </div>
+                )
+              }
+              const staff = sortedStaff[index]
+              const staffShiftsByDay = groupedShifts.get(staff.id) || new Map<number, Shift[]>()
+              const allStaffShifts = Array.from(staffShiftsByDay.values()).flat()
+              return (
+                <div style={style}>
+                  <StaffRow
+                    key={staff.id}
+                    staff={staff}
+                    weekStart={weekStart}
+                    timezone={timezone}
+                    shiftsByDay={staffShiftsByDay}
+                    conflicts={conflicts}
+                    onShiftClick={onShiftClick}
+                    onCellClick={onCellClick}
+                    onDragStart={handleDragStart}
+                    onDrop={handleDrop}
+                    budgetViewActive={budgetViewActive}
+                    staffHourlyRate={staffHourlyRates.get(staff.id) ?? null}
+                    isLoadingRates={isLoadingRates}
+                    overtimeShiftCosts={budgetViewActive ? overtimeShiftCosts : new Map()}
+                  />
+                </div>
+              )
+            }}
+          </FixedSizeList>
+        ) : (
+          <div className="flex-1 overflow-auto">
+            <div className="min-w-full">
+              {sortedStaff.map((staff) => {
+                const staffShiftsByDay = groupedShifts.get(staff.id) || new Map<number, Shift[]>()
+                const allStaffShifts = Array.from(staffShiftsByDay.values()).flat()
+                return (
+                  <StaffRow
+                    key={staff.id}
+                    staff={staff}
+                    weekStart={weekStart}
+                    timezone={timezone}
+                    shiftsByDay={staffShiftsByDay}
+                    conflicts={conflicts}
+                    onShiftClick={onShiftClick}
+                    onCellClick={onCellClick}
+                    onDragStart={handleDragStart}
+                    onDrop={handleDrop}
+                    budgetViewActive={budgetViewActive}
+                    staffHourlyRate={staffHourlyRates.get(staff.id) ?? null}
+                    isLoadingRates={isLoadingRates}
+                    overtimeShiftCosts={budgetViewActive ? overtimeShiftCosts : new Map()}
+                  />
+                )
+              })}
+              
+              {/* Column totals row */}
+              {budgetViewActive && (
+                <ColumnTotalsRow
+                  weekStart={weekStart}
+                  dayTotals={dayTotals}
+                  grandTotal={grandTotal}
+                  isLoading={isLoadingRates}
+                />
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

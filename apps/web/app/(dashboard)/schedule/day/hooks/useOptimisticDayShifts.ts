@@ -1,9 +1,13 @@
 'use client'
 
-import { useState, useCallback, useRef, useMemo } from 'react'
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import { Shift, ShiftUpdateError } from '@/lib/schedule/types'
-import { useDayShifts } from './useDayShifts'
+import { useDayShiftsSWR } from './useDayShiftsSWR'
+import { useTenantId } from '../../hooks/useTenantId'
+import { prefetchAdjacentDays, cancelPrefetch } from '../../hooks/usePrefetch'
 import { updateShiftViaAPI, createShiftViaAPI, deleteShiftViaAPI } from '@/lib/schedule/shift-updates'
+import { mutate } from 'swr'
+import { getDayCacheKey, CacheFilters } from '../../hooks/useScheduleCache'
 
 interface OptimisticShift extends Shift {
   _isOptimistic?: boolean
@@ -25,11 +29,59 @@ export function useOptimisticDayShifts(
     includeCancelled?: boolean
   }
 ) {
-  const { shifts: baseShifts, loading, error, conflicts, totals, refetch: baseRefetch } = useDayShifts(date, filters)
+  const tenantId = useTenantId()
+  const cacheFilters: CacheFilters | undefined = filters ? {
+    locationId: filters.locationId,
+    staffId: filters.staffId,
+    status: filters.status,
+    includeCancelled: filters.includeCancelled,
+  } : undefined
+
+  const { shifts: baseShifts, loading, error, conflicts, totals, refetch: baseRefetch } = useDayShiftsSWR(
+    date,
+    tenantId,
+    cacheFilters
+  )
   
   const [optimisticShifts, setOptimisticShifts] = useState<OptimisticShift[]>([])
   const [syncing, setSyncing] = useState(false)
   const pendingMutationsRef = useRef<Map<string, PendingMutation>>(new Map())
+
+  // Prefetch adjacent days on idle
+  useEffect(() => {
+    if (!tenantId) return
+    
+    const prefetch = async () => {
+      await prefetchAdjacentDays(
+        date,
+        tenantId,
+        cacheFilters,
+        async (targetDate) => {
+          // Prefetch function - fetch and cache the data
+          const dateStr = targetDate.toISOString().split('T')[0]
+          const params = new URLSearchParams()
+          params.append('date', dateStr)
+          if (cacheFilters?.locationId) params.append('locationId', cacheFilters.locationId)
+          if (cacheFilters?.staffId) params.append('staffId', cacheFilters.staffId)
+          if (cacheFilters?.status) params.append('status', cacheFilters.status)
+          if (cacheFilters?.includeCancelled) params.append('includeCancelled', 'true')
+          
+          const response = await fetch(`/api/schedule/day?${params}`)
+          if (response.ok) {
+            const data = await response.json()
+            const key = getDayCacheKey(tenantId, targetDate, cacheFilters)
+            mutate(key, data, false) // Cache without revalidation
+          }
+        }
+      )
+    }
+    
+    prefetch()
+    
+    return () => {
+      cancelPrefetch()
+    }
+  }, [date, tenantId, cacheFilters])
 
   // Merge base shifts with optimistic updates
   const shifts = useMemo(() => {
@@ -86,8 +138,11 @@ export function useOptimisticDayShifts(
 
       pendingMutationsRef.current.delete(shiftId)
       
-      // Background refetch
-      baseRefetch()
+      // Invalidate cache and refetch in background (silent)
+      if (tenantId) {
+        const key = getDayCacheKey(tenantId, date, cacheFilters)
+        mutate(key, undefined, { revalidate: true })
+      }
       
       return realShift
     } catch (err) {
@@ -152,8 +207,11 @@ export function useOptimisticDayShifts(
 
       pendingMutationsRef.current.delete(tempId)
       
-      // Background refetch
-      baseRefetch()
+      // Invalidate cache and refetch in background (silent)
+      if (tenantId) {
+        const key = getDayCacheKey(tenantId, date, cacheFilters)
+        mutate(key, undefined, { revalidate: true })
+      }
       
       return realShift
     } catch (err) {
@@ -166,7 +224,7 @@ export function useOptimisticDayShifts(
     } finally {
       setSyncing(false)
     }
-  }, [baseRefetch])
+  }, [date, tenantId, cacheFilters])
 
   const deleteShift = useCallback(async (shiftId: string): Promise<void> => {
     const existingShift = shifts.find(s => s.id === shiftId)
@@ -194,8 +252,11 @@ export function useOptimisticDayShifts(
 
       pendingMutationsRef.current.delete(shiftId)
       
-      // Background refetch
-      baseRefetch()
+      // Invalidate cache and refetch in background (silent)
+      if (tenantId) {
+        const key = getDayCacheKey(tenantId, date, cacheFilters)
+        mutate(key, undefined, { revalidate: true })
+      }
     } catch (err) {
       // Revert: add back original shift
       setOptimisticShifts(prev => [...prev, existingShift as OptimisticShift])
@@ -206,7 +267,7 @@ export function useOptimisticDayShifts(
     } finally {
       setSyncing(false)
     }
-  }, [shifts, baseRefetch])
+  }, [shifts, date, tenantId, cacheFilters])
 
   return {
     shifts,

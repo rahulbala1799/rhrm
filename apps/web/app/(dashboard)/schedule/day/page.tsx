@@ -12,6 +12,9 @@ import ShiftModal, { ShiftFormData } from '../week/components/ShiftModal'
 import Toast from '../week/components/Toast'
 import { applyTimeToDate } from '@/lib/schedule/timezone-utils'
 import { toUtcIsoInTenantTz } from '@/lib/schedule/shift-updates'
+import { useOfflineDetection } from '../hooks/useOfflineDetection'
+import { useWindowFocusRefetch } from '../hooks/useWindowFocusRefetch'
+import { useUndoRedo } from './hooks/useUndoRedo'
 
 export default function DayViewPage() {
   const [currentDate, setCurrentDate] = useState(() => startOfDay(new Date()))
@@ -35,6 +38,8 @@ export default function DayViewPage() {
 
   const { settings } = useTenantSettings()
   const timezone = settings?.timezone || 'UTC'
+  const { isOffline } = useOfflineDetection()
+  const { addAction: addUndoAction } = useUndoRedo()
 
   const {
     shifts,
@@ -47,6 +52,9 @@ export default function DayViewPage() {
     deleteShift,
     refetch,
   } = useOptimisticDayShifts(currentDate)
+
+  // Window focus refetch (rate-limited)
+  useWindowFocusRefetch(refetch)
 
   // Fetch staff and locations
   useEffect(() => {
@@ -119,7 +127,7 @@ export default function DayViewPage() {
       const endTimeUTC = toUtcIsoInTenantTz(endTime, timezone)
 
       // Use hook method
-      await createShift({
+      const newShift = await createShift({
         staff_id: staffId,
         location_id: defaultLocationId,
         start_time: startTimeUTC,
@@ -127,7 +135,33 @@ export default function DayViewPage() {
         status: 'draft',
       })
 
-      setToast({ message: 'Shift created successfully', type: 'success' })
+      // Add undo action
+      addUndoAction({
+        type: 'create',
+        shiftId: newShift.id,
+        previousState: null,
+        newState: {
+          staff_id: staffId,
+          location_id: defaultLocationId,
+          start_time: startTimeUTC,
+          end_time: endTimeUTC,
+          status: 'draft',
+        },
+        execute: async () => {
+          await createShift({
+            staff_id: staffId,
+            location_id: defaultLocationId,
+            start_time: startTimeUTC,
+            end_time: endTimeUTC,
+            status: 'draft',
+          })
+        },
+        reverse: async () => {
+          await deleteShift(newShift.id)
+        },
+      })
+
+      // No success toast for implicit actions (drag create)
     } catch (err) {
       const error = err as ShiftUpdateError
       if (error.code === 'OVERLAP') {
@@ -136,9 +170,12 @@ export default function DayViewPage() {
         setToast({ message: error.message, type: 'error' })
       }
     }
-  }, [staffList, locationList, timezone, createShift])
+  }, [staffList, locationList, timezone, createShift, deleteShift, addUndoAction])
 
   const handleShiftMove = useCallback(async (shiftId: string, newStaffId: string, newStartTime: Date, newEndTime: Date) => {
+    const originalShift = shifts.find(s => s.id === shiftId)
+    if (!originalShift) return
+
     try {
       // Convert to UTC timestamps using shared helper
       const startTimeUTC = toUtcIsoInTenantTz(newStartTime, timezone)
@@ -151,7 +188,37 @@ export default function DayViewPage() {
         end_time: endTimeUTC,
       })
 
-      setToast({ message: 'Shift moved successfully', type: 'success' })
+      // Add undo action
+      addUndoAction({
+        type: 'move',
+        shiftId,
+        previousState: {
+          staff_id: originalShift.staff_id,
+          start_time: originalShift.start_time,
+          end_time: originalShift.end_time,
+        },
+        newState: {
+          staff_id: newStaffId,
+          start_time: startTimeUTC,
+          end_time: endTimeUTC,
+        },
+        execute: async () => {
+          await updateShift(shiftId, {
+            staff_id: newStaffId,
+            start_time: startTimeUTC,
+            end_time: endTimeUTC,
+          })
+        },
+        reverse: async () => {
+          await updateShift(shiftId, {
+            staff_id: originalShift.staff_id,
+            start_time: originalShift.start_time,
+            end_time: originalShift.end_time,
+          })
+        },
+      })
+
+      // No success toast for implicit actions (drag)
     } catch (err) {
       const error = err as ShiftUpdateError
       if (error.code === 'OVERLAP') {
@@ -162,9 +229,12 @@ export default function DayViewPage() {
         setToast({ message: error.message, type: 'error' })
       }
     }
-  }, [timezone, updateShift])
+  }, [timezone, updateShift, shifts, addUndoAction])
 
   const handleShiftResize = useCallback(async (shiftId: string, newStartTime: Date, newEndTime: Date) => {
+    const originalShift = shifts.find(s => s.id === shiftId)
+    if (!originalShift) return
+
     try {
       // Convert to UTC timestamps using shared helper
       const startTimeUTC = toUtcIsoInTenantTz(newStartTime, timezone)
@@ -176,7 +246,33 @@ export default function DayViewPage() {
         end_time: endTimeUTC,
       })
 
-      setToast({ message: 'Shift resized successfully', type: 'success' })
+      // Add undo action
+      addUndoAction({
+        type: 'resize',
+        shiftId,
+        previousState: {
+          start_time: originalShift.start_time,
+          end_time: originalShift.end_time,
+        },
+        newState: {
+          start_time: startTimeUTC,
+          end_time: endTimeUTC,
+        },
+        execute: async () => {
+          await updateShift(shiftId, {
+            start_time: startTimeUTC,
+            end_time: endTimeUTC,
+          })
+        },
+        reverse: async () => {
+          await updateShift(shiftId, {
+            start_time: originalShift.start_time,
+            end_time: originalShift.end_time,
+          })
+        },
+      })
+
+      // No success toast for implicit actions (resize)
     } catch (err) {
       const error = err as ShiftUpdateError
       if (error.code === 'OVERLAP') {
@@ -185,7 +281,7 @@ export default function DayViewPage() {
         setToast({ message: error.message, type: 'error' })
       }
     }
-  }, [timezone, updateShift])
+  }, [timezone, updateShift, shifts, addUndoAction])
 
   const handleSaveShift = async (formData: ShiftFormData) => {
     try {
@@ -229,9 +325,41 @@ export default function DayViewPage() {
   }
 
   const handleDeleteShift = async (shiftId: string) => {
+    const originalShift = shifts.find(s => s.id === shiftId)
+    if (!originalShift) return
+
+    // Confirm deletion
+    if (!confirm('Are you sure you want to delete this shift?')) {
+      return
+    }
+
     try {
       // Use hook method
       await deleteShift(shiftId)
+
+      // Add undo action
+      addUndoAction({
+        type: 'delete',
+        shiftId,
+        previousState: originalShift,
+        newState: null,
+        execute: async () => {
+          await deleteShift(shiftId)
+        },
+        reverse: async () => {
+          await createShift({
+            staff_id: originalShift.staff_id,
+            location_id: originalShift.location_id,
+            role_id: originalShift.role_id,
+            start_time: originalShift.start_time,
+            end_time: originalShift.end_time,
+            break_duration_minutes: originalShift.break_duration_minutes,
+            status: originalShift.status,
+            notes: originalShift.notes,
+          })
+        },
+      })
+
       setToast({ message: 'Shift deleted successfully', type: 'success' })
     } catch (err) {
       const error = err as ShiftUpdateError
@@ -341,6 +469,13 @@ export default function DayViewPage() {
       />
 
       <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Offline Indicator */}
+        {isOffline && (
+          <div className="bg-yellow-500 text-white px-4 py-2 text-sm text-center">
+            You're offline. Changes will sync when connection is restored.
+          </div>
+        )}
+
         {/* Top Toolbar */}
         <div className="flex items-center justify-between border-b bg-white px-4 py-2">
           <div className="flex items-center gap-2">
@@ -393,11 +528,8 @@ export default function DayViewPage() {
 
         {/* Main Canvas */}
         <div className="flex-1 overflow-hidden">
-          {loading ? (
-            <div className="flex h-full items-center justify-center">
-              <div className="text-gray-500">Loading shifts...</div>
-            </div>
-          ) : error ? (
+          {/* CRITICAL: No loading state after first paint - SWR shows cached data immediately */}
+          {error ? (
             <div className="flex h-full items-center justify-center">
               <div className="text-red-500">Error: {error}</div>
             </div>

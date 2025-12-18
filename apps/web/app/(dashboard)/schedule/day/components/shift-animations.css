@@ -1,0 +1,40 @@
+/**
+ * Shift block animations
+ * 
+ * - settle: Subtle animation on successful drop (100-150ms)
+ * - pulse: Pulse animation for conflicting shift
+ * - shake: Shake animation for dragged block on conflict rollback
+ */
+
+@keyframes settle {
+  0% {
+    transform: scale(1.02);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-4px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(4px);
+  }
+}
+
