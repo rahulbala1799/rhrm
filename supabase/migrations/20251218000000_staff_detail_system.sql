@@ -72,18 +72,21 @@ CREATE POLICY staff_select_policy_staff ON staff
 ALTER TABLE staff_status_history ENABLE ROW LEVEL SECURITY;
 
 -- Admin/Manager can view status history for staff in their tenant
+DROP POLICY IF EXISTS staff_status_history_select_admin ON staff_status_history;
 CREATE POLICY staff_status_history_select_admin ON staff_status_history
     FOR SELECT
     USING (
         public.user_has_role_in_tenant(auth.uid(), tenant_id, 'admin')
     );
 
+DROP POLICY IF EXISTS staff_status_history_select_manager ON staff_status_history;
 CREATE POLICY staff_status_history_select_manager ON staff_status_history
     FOR SELECT
     USING (
         public.user_has_role_in_tenant(auth.uid(), tenant_id, 'manager')
     );
 
+DROP POLICY IF EXISTS staff_status_history_select_superadmin ON staff_status_history;
 CREATE POLICY staff_status_history_select_superadmin ON staff_status_history
     FOR SELECT
     USING (
@@ -91,18 +94,21 @@ CREATE POLICY staff_status_history_select_superadmin ON staff_status_history
     );
 
 -- Only admin/manager/superadmin can insert status history (via API)
+DROP POLICY IF EXISTS staff_status_history_insert_admin ON staff_status_history;
 CREATE POLICY staff_status_history_insert_admin ON staff_status_history
     FOR INSERT
     WITH CHECK (
         public.user_has_role_in_tenant(auth.uid(), tenant_id, 'admin')
     );
 
+DROP POLICY IF EXISTS staff_status_history_insert_manager ON staff_status_history;
 CREATE POLICY staff_status_history_insert_manager ON staff_status_history
     FOR INSERT
     WITH CHECK (
         public.user_has_role_in_tenant(auth.uid(), tenant_id, 'manager')
     );
 
+DROP POLICY IF EXISTS staff_status_history_insert_superadmin ON staff_status_history;
 CREATE POLICY staff_status_history_insert_superadmin ON staff_status_history
     FOR INSERT
     WITH CHECK (
