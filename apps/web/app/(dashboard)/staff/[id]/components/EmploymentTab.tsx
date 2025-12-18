@@ -38,11 +38,6 @@ interface StatusHistory {
   created_at: string
 }
 
-interface Location {
-  id: string
-  name: string
-}
-
 interface ManagerOption {
   id: string
   employee_number: string
@@ -60,7 +55,6 @@ interface EmploymentTabProps {
 }
 
 export default function EmploymentTab({ staff, editing, statusHistory, formRef, onSave }: EmploymentTabProps) {
-  const [locations, setLocations] = useState<Location[]>([])
   const [managers, setManagers] = useState<ManagerOption[]>([])
   const [showStatusModal, setShowStatusModal] = useState(false)
   const [statusChangeData, setStatusChangeData] = useState({
@@ -69,9 +63,7 @@ export default function EmploymentTab({ staff, editing, statusHistory, formRef, 
     reason: '',
   })
   const [formData, setFormData] = useState({
-    location_id: staff.location_id || '',
     employment_type: staff.employment_type || '',
-    job_title: staff.job_title || '',
     department: staff.department || '',
     employment_start_date: staff.employment_start_date || '',
     employment_end_date: staff.employment_end_date || '',
@@ -80,21 +72,8 @@ export default function EmploymentTab({ staff, editing, statusHistory, formRef, 
   })
 
   useEffect(() => {
-    fetchLocations()
     fetchManagers()
   }, [])
-
-  const fetchLocations = async () => {
-    try {
-      const response = await fetch('/api/settings/locations')
-      if (response.ok) {
-        const data = await response.json()
-        setLocations(data.locations || [])
-      }
-    } catch (error) {
-      console.error('Error fetching locations:', error)
-    }
-  }
 
   const fetchManagers = async () => {
     try {
@@ -165,23 +144,6 @@ export default function EmploymentTab({ staff, editing, statusHistory, formRef, 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Location
-                </label>
-                <select
-                  value={formData.location_id}
-                  onChange={(e) => setFormData({ ...formData, location_id: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">None</option>
-                  {locations.map((loc) => (
-                    <option key={loc.id} value={loc.id}>
-                      {loc.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Employment Type
                 </label>
                 <select
@@ -195,17 +157,6 @@ export default function EmploymentTab({ staff, editing, statusHistory, formRef, 
                   <option value="casual">Casual</option>
                   <option value="contractor">Contractor</option>
                 </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Job Title
-                </label>
-                <input
-                  type="text"
-                  value={formData.job_title}
-                  onChange={(e) => setFormData({ ...formData, job_title: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -370,16 +321,8 @@ export default function EmploymentTab({ staff, editing, statusHistory, formRef, 
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Employment Details</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Location</label>
-            <p className="text-gray-900">{staff.locations?.name || '—'}</p>
-          </div>
-          <div>
             <label className="block text-sm font-medium text-gray-600 mb-1">Employment Type</label>
             <p className="text-gray-900">{formatEmploymentType(staff.employment_type)}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Job Title</label>
-            <p className="text-gray-900">{staff.job_title || '—'}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1">Department</label>
