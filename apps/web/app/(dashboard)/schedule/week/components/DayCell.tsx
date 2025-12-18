@@ -15,6 +15,9 @@ interface DayCellProps {
   onDragStart?: (shift: Shift, e: React.DragEvent) => void
   onDragEnd?: (e: React.DragEvent) => void
   onDrop?: (e: React.DragEvent, targetStaffId: string, targetDayIndex: number, targetDate: Date) => void
+  budgetViewActive?: boolean
+  staffHourlyRate?: number | null
+  isLoadingRates?: boolean
 }
 
 export default function DayCell({
@@ -29,6 +32,9 @@ export default function DayCell({
   onDragStart,
   onDragEnd,
   onDrop,
+  budgetViewActive = false,
+  staffHourlyRate = null,
+  isLoadingRates = false,
 }: DayCellProps) {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
@@ -65,6 +71,9 @@ export default function DayCell({
         onShiftClick={onShiftClick}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
+        budgetViewActive={budgetViewActive}
+        staffHourlyRate={staffHourlyRate}
+        isLoadingRates={isLoadingRates}
       />
     </div>
   )

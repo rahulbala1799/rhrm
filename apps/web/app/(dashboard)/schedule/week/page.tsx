@@ -10,8 +10,10 @@ import Toast from './components/Toast'
 import { useWeekShifts, Shift, WeekShiftsResponse } from './hooks/useWeekShifts'
 import { useTenantSettings } from './hooks/useTenantSettings'
 import { useOptimisticShifts } from './hooks/useOptimisticShifts'
+import { useBudgetViewToggle } from './hooks/useBudgetViewToggle'
 import { applyTimeToDate, toTenantTimezone } from '@/lib/schedule/timezone-utils'
-import { CloudArrowUpIcon } from '@heroicons/react/24/outline'
+import { CloudArrowUpIcon, LockClosedIcon } from '@heroicons/react/24/outline'
+import BudgetViewErrorBoundary from './components/BudgetViewErrorBoundary'
 
 export default function WeekPlannerPage() {
   const [currentWeek, setCurrentWeek] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }))
@@ -30,9 +32,16 @@ export default function WeekPlannerPage() {
   }>>([])
   const [locationList, setLocationList] = useState<Array<{ id: string; name: string }>>([])
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
+  const [staffHourlyRates, setStaffHourlyRates] = useState<Map<string, number | null>>(new Map())
+  const [isLoadingRates, setIsLoadingRates] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
 
   const { settings } = useTenantSettings()
   const timezone = settings?.timezone || 'UTC'
+  
+  // Budget view toggle
+  const [budgetViewActive, setBudgetViewActive] = useBudgetViewToggle()
+  const canViewBudget = userRole === 'admin' || userRole === 'manager' || userRole === 'superadmin'
   
   // Use optimistic shifts hook
   const {
@@ -46,6 +55,22 @@ export default function WeekPlannerPage() {
     deleteShift,
     refetch,
   } = useOptimisticShifts(currentWeek)
+
+  // Fetch user role
+  useEffect(() => {
+    const fetchRole = async () => {
+      try {
+        const response = await fetch('/api/auth/role')
+        if (response.ok) {
+          const data = await response.json()
+          setUserRole(data.role || null)
+        }
+      } catch (err) {
+        console.error('Error fetching role:', err)
+      }
+    }
+    fetchRole()
+  }, [])
 
   // Fetch staff and locations
   useEffect(() => {
@@ -66,9 +91,20 @@ export default function WeekPlannerPage() {
               location: staff.locations ? { id: staff.locations.id, name: staff.locations.name } : null,
             }))
           )
+          
+          // Extract hourly rates if user has permission
+          if (canViewBudget) {
+            const rates = new Map<string, number | null>()
+            ;(data.staff || []).forEach((staff: any) => {
+              rates.set(staff.id, staff.hourly_rate ?? null)
+            })
+            setStaffHourlyRates(rates)
+            setIsLoadingRates(false)
+          }
         }
       } catch (err) {
         console.error('Error fetching staff:', err)
+        setIsLoadingRates(false)
       }
     }
 
@@ -84,9 +120,10 @@ export default function WeekPlannerPage() {
       }
     }
 
+    setIsLoadingRates(canViewBudget)
     fetchStaff()
     fetchLocations()
-  }, [])
+  }, [canViewBudget])
 
   const handleCreateShift = () => {
     setEditingShift(null)
@@ -245,6 +282,9 @@ export default function WeekPlannerPage() {
         onTodayClick={handleTodayClick}
         onCreateShift={handleCreateShift}
         canCreateShift={true}
+        budgetViewActive={budgetViewActive}
+        onBudgetViewToggle={setBudgetViewActive}
+        canViewBudget={canViewBudget}
       />
 
       {/* Syncing indicator */}
@@ -261,16 +301,21 @@ export default function WeekPlannerPage() {
             <div className="text-gray-500">Loading shifts...</div>
           </div>
         ) : (
-          <StaffRowScheduler
-            weekStart={currentWeek}
-            shifts={shifts}
-            staffList={staffList}
-            timezone={timezone}
-            conflicts={conflicts}
-            onShiftClick={handleShiftClick}
-            onCellClick={handleCellClick}
-            onShiftDrop={handleShiftDrop}
-          />
+          <BudgetViewErrorBoundary>
+            <StaffRowScheduler
+              weekStart={currentWeek}
+              shifts={shifts}
+              staffList={staffList}
+              timezone={timezone}
+              conflicts={conflicts}
+              onShiftClick={handleShiftClick}
+              onCellClick={handleCellClick}
+              onShiftDrop={handleShiftDrop}
+              budgetViewActive={budgetViewActive && canViewBudget}
+              staffHourlyRates={staffHourlyRates}
+              isLoadingRates={isLoadingRates}
+            />
+          </BudgetViewErrorBoundary>
         )}
       </div>
 

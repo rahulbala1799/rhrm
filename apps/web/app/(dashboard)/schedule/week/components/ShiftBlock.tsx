@@ -3,6 +3,7 @@
 import { Shift } from '../hooks/useWeekShifts'
 import { formatTimeInTimezone } from '@/lib/schedule/timezone-utils'
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import ShiftCost from './ShiftCost'
 
 interface ShiftBlockProps {
   shift: Shift
@@ -13,6 +14,9 @@ interface ShiftBlockProps {
   onClick?: () => void
   onDragStart?: (e: React.DragEvent) => void
   onDragEnd?: (e: React.DragEvent) => void
+  budgetViewActive?: boolean
+  staffHourlyRate?: number | null
+  isLoadingRates?: boolean
 }
 
 const statusColors = {
@@ -38,6 +42,9 @@ export default function ShiftBlock({
   onClick,
   onDragStart,
   onDragEnd,
+  budgetViewActive = false,
+  staffHourlyRate = null,
+  isLoadingRates = false,
 }: ShiftBlockProps) {
   const timeStr = `${formatTimeInTimezone(shift.start_time, timezone)} - ${formatTimeInTimezone(shift.end_time, timezone)}`
   const locationName = shift.location?.name || 'Unknown location'
@@ -114,6 +121,14 @@ export default function ShiftBlock({
               </span>
             )}
           </div>
+          {budgetViewActive && !isGhost && (
+            <ShiftCost
+              shift={shift}
+              staffHourlyRate={staffHourlyRate}
+              timezone={timezone}
+              isLoading={isLoadingRates}
+            />
+          )}
         </div>
         {hasWarnings && (
           <ExclamationTriangleIcon

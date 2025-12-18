@@ -3,12 +3,17 @@
 import { format, startOfWeek, addDays, subWeeks, addWeeks } from 'date-fns'
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon } from '@heroicons/react/24/outline'
 
+import BudgetViewToggle from './BudgetViewToggle'
+
 interface WeekPlannerHeaderProps {
   currentWeek: Date
   onWeekChange: (week: Date) => void
   onTodayClick: () => void
   onCreateShift: () => void
   canCreateShift?: boolean
+  budgetViewActive?: boolean
+  onBudgetViewToggle?: (active: boolean) => void
+  canViewBudget?: boolean
 }
 
 export default function WeekPlannerHeader({
@@ -17,6 +22,9 @@ export default function WeekPlannerHeader({
   onTodayClick,
   onCreateShift,
   canCreateShift = true,
+  budgetViewActive = false,
+  onBudgetViewToggle,
+  canViewBudget = false,
 }: WeekPlannerHeaderProps) {
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 }) // Monday
   const weekEnd = addDays(weekStart, 6) // Sunday
@@ -68,6 +76,12 @@ export default function WeekPlannerHeader({
 
         {/* Actions */}
         <div className="flex items-center gap-3">
+          {canViewBudget && onBudgetViewToggle && (
+            <BudgetViewToggle
+              isActive={budgetViewActive}
+              onToggle={onBudgetViewToggle}
+            />
+          )}
           {canCreateShift && (
             <button
               onClick={onCreateShift}

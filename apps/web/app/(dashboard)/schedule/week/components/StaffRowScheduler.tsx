@@ -4,7 +4,10 @@ import { useMemo } from 'react'
 import { format, addDays, startOfWeek } from 'date-fns'
 import { Shift } from '../hooks/useWeekShifts'
 import StaffRow from './StaffRow'
+import ColumnTotalsRow from './ColumnTotalsRow'
 import { groupShiftsByStaffAndDay } from '@/lib/schedule/shift-grouping'
+import { calculateColumnTotal, calculateGrandTotal } from '../utils/budget-calculations'
+import { getDayOfWeekInTimezone } from '@/lib/schedule/timezone-utils'
 
 interface Staff {
   id: string
@@ -33,6 +36,9 @@ interface StaffRowSchedulerProps {
     targetDayIndex: number,
     targetDate: Date
   ) => void
+  budgetViewActive?: boolean
+  staffHourlyRates?: Map<string, number | null>
+  isLoadingRates?: boolean
 }
 
 export default function StaffRowScheduler({
@@ -44,6 +50,9 @@ export default function StaffRowScheduler({
   onShiftClick,
   onCellClick,
   onShiftDrop,
+  budgetViewActive = false,
+  staffHourlyRates = new Map(),
+  isLoadingRates = false,
 }: StaffRowSchedulerProps) {
   // Group shifts by staff and day
   const groupedShifts = useMemo(() => {
@@ -72,6 +81,24 @@ export default function StaffRowScheduler({
       }
     })
   }, [weekStart])
+
+  // Calculate column totals and grand total for budget view
+  const { dayTotals, grandTotal } = useMemo(() => {
+    if (!budgetViewActive) {
+      return { dayTotals: [0, 0, 0, 0, 0, 0, 0], grandTotal: 0 }
+    }
+
+    const totals = Array.from({ length: 7 }, (_, dayIndex) => {
+      const dayShifts = shifts.filter(shift => {
+        const day = getDayOfWeekInTimezone(shift.start_time, timezone)
+        return day === dayIndex
+      })
+      return calculateColumnTotal(dayShifts, staffHourlyRates)
+    })
+
+    const total = calculateGrandTotal(shifts, staffHourlyRates)
+    return { dayTotals: totals, grandTotal: total }
+  }, [budgetViewActive, shifts, staffHourlyRates, timezone])
 
   const handleDragStart = (shift: Shift, e: React.DragEvent) => {
     // Set drag data
@@ -126,6 +153,13 @@ export default function StaffRowScheduler({
               </div>
             </div>
           ))}
+          
+          {/* Budget totals column header */}
+          {budgetViewActive && (
+            <div className="sticky right-0 z-10 w-24 flex-shrink-0 border-l border-gray-200 bg-white p-2 text-center">
+              <div className="text-xs font-medium text-gray-500">Total</div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -146,9 +180,22 @@ export default function StaffRowScheduler({
                 onCellClick={onCellClick}
                 onDragStart={handleDragStart}
                 onDrop={handleDrop}
+                budgetViewActive={budgetViewActive}
+                staffHourlyRate={staffHourlyRates.get(staff.id) ?? null}
+                isLoadingRates={isLoadingRates}
               />
             )
           })}
+          
+          {/* Column totals row */}
+          {budgetViewActive && (
+            <ColumnTotalsRow
+              weekStart={weekStart}
+              dayTotals={dayTotals}
+              grandTotal={grandTotal}
+              isLoading={isLoadingRates}
+            />
+          )}
         </div>
       </div>
     </div>

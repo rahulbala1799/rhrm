@@ -15,6 +15,9 @@ interface ShiftStackProps {
   onShiftClick?: (shift: Shift) => void
   onDragStart?: (shift: Shift, e: React.DragEvent) => void
   onDragEnd?: (e: React.DragEvent) => void
+  budgetViewActive?: boolean
+  staffHourlyRate?: number | null
+  isLoadingRates?: boolean
 }
 
 export default function ShiftStack({
@@ -25,6 +28,9 @@ export default function ShiftStack({
   onShiftClick,
   onDragStart,
   onDragEnd,
+  budgetViewActive = false,
+  staffHourlyRate = null,
+  isLoadingRates = false,
 }: ShiftStackProps) {
   // Sort by start time (ascending)
   const sortedShifts = [...shifts].sort((a, b) => {
@@ -53,6 +59,9 @@ export default function ShiftStack({
               onClick={() => onShiftClick?.(shift)}
               onDragStart={(e) => onDragStart?.(shift, e)}
               onDragEnd={onDragEnd}
+              budgetViewActive={budgetViewActive}
+              staffHourlyRate={staffHourlyRate}
+              isLoadingRates={isLoadingRates}
             />
             {needsGhost && (
               <OvernightContinuationBlock

@@ -53,6 +53,6 @@ apps/web/.env.vercel
 .env.secrets
 .env.keys
 
-# Documentation files that may contain sensitive info (optional - uncomment if needed)
-# apps/**/README.md
-# apps/**/*README*.md
+# Documentation files that may contain sensitive info
+apps/**/BUDGET_VIEW_TOGGLE_README.md
+apps/**/*BUDGET*README*.md

@@ -3,7 +3,9 @@
 import { format } from 'date-fns'
 import { Shift } from '../hooks/useWeekShifts'
 import DayCell from './DayCell'
+import RowTotalCell from './RowTotalCell'
 import { addDays } from 'date-fns'
+import { calculateRowTotal } from '../utils/budget-calculations'
 
 interface Staff {
   id: string
@@ -29,6 +31,9 @@ interface StaffRowProps {
   onDragStart?: (shift: Shift, e: React.DragEvent) => void
   onDragEnd?: (e: React.DragEvent) => void
   onDrop?: (e: React.DragEvent, targetStaffId: string, targetDayIndex: number, targetDate: Date) => void
+  budgetViewActive?: boolean
+  staffHourlyRate?: number | null
+  isLoadingRates?: boolean
 }
 
 export default function StaffRow({
@@ -42,6 +47,9 @@ export default function StaffRow({
   onDragStart,
   onDragEnd,
   onDrop,
+  budgetViewActive = false,
+  staffHourlyRate = null,
+  isLoadingRates = false,
 }: StaffRowProps) {
   // Display name: preferred_name ?? first_name ?? last_name ?? "Unnamed"
   const displayName = staff.preferred_name || staff.first_name || staff.last_name || 'Unnamed'
@@ -53,6 +61,10 @@ export default function StaffRow({
     const dayDate = addDays(weekStart, i)
     return { dayIndex: i, dayDate }
   })
+
+  // Calculate row total for budget view
+  const allStaffShifts = Array.from(shiftsByDay.values()).flat()
+  const rowTotal = budgetViewActive ? calculateRowTotal(allStaffShifts, staffHourlyRate) : 0
 
   return (
     <div className="flex border-b border-gray-200">
@@ -83,8 +95,20 @@ export default function StaffRow({
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
           onDrop={onDrop}
+          budgetViewActive={budgetViewActive}
+          staffHourlyRate={staffHourlyRate}
+          isLoadingRates={isLoadingRates}
         />
       ))}
+      
+      {/* Row total cell */}
+      {budgetViewActive && (
+        <RowTotalCell
+          totalCost={rowTotal}
+          hasData={allStaffShifts.length > 0}
+          isLoading={isLoadingRates}
+        />
+      )}
     </div>
   )
 }

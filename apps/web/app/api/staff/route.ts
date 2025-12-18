@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server'
  * Get all staff members for the tenant
  */
 export async function GET(request: Request) {
-  const { tenantId } = await getTenantContext()
+  const { tenantId, role } = await getTenantContext()
 
   if (!tenantId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -15,6 +15,9 @@ export async function GET(request: Request) {
 
   const supabase = await createClient()
   const { searchParams } = new URL(request.url)
+  
+  // Check if user can view budget (admin/manager only)
+  const canViewBudget = role === 'admin' || role === 'manager' || role === 'superadmin'
   
   // Check if this is for manager dropdown
   const forManagerDropdown = searchParams.get('for_manager_dropdown') === 'true'
@@ -77,7 +80,7 @@ export async function GET(request: Request) {
     .select('*', { count: 'exact', head: true })
     .eq('tenant_id', tenantId)
 
-  // Build main query
+  // Build main query - always select hourly_rate, but remove it from response if user doesn't have permission
   let query = supabase
     .from('staff')
     .select(`
@@ -141,10 +144,19 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Failed to fetch staff' }, { status: 500 })
   }
 
+  // Remove hourly_rate from response if user doesn't have permission
+  const sanitizedStaff = staff?.map((s: any) => {
+    if (!canViewBudget && 'hourly_rate' in s) {
+      const { hourly_rate, ...rest } = s
+      return rest
+    }
+    return s
+  }) || []
+
   // Return with pagination metadata if pagination was requested
   if (page !== null && pageSize !== null && total !== null) {
     return NextResponse.json({
-      staff: staff || [],
+      staff: sanitizedStaff,
       pagination: {
         page,
         pageSize,
@@ -155,7 +167,7 @@ export async function GET(request: Request) {
   }
 
   // Backward compatibility: return array if no pagination
-  return NextResponse.json({ staff: staff || [] })
+  return NextResponse.json({ staff: sanitizedStaff })
 }
 
 /**
