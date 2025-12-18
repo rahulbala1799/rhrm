@@ -175,22 +175,33 @@ export async function POST(request: Request) {
 
   // Create staff record immediately if role is 'staff'
   // This ensures staff appear in the list as soon as they accept the invitation
+  // CRITICAL: Use serviceClient which bypasses RLS
   if (invitation.role === 'staff') {
     // Check if staff record already exists
-    const { data: existingStaff } = await serviceClient
+    const { data: existingStaff, error: checkError } = await serviceClient
       .from('staff')
       .select('id')
       .eq('tenant_id', invitation.tenant_id)
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
+
+    if (checkError) {
+      console.error('Error checking for existing staff record:', checkError)
+      // Continue anyway - might be a transient error
+    }
 
     if (!existingStaff) {
       // Get user profile for name and email
-      const { data: profile } = await serviceClient
+      const { data: profile, error: profileError } = await serviceClient
         .from('profiles')
         .select('full_name, email, phone')
         .eq('id', user.id)
         .single()
+
+      if (profileError) {
+        console.error('Error fetching profile for staff creation:', profileError)
+        // Continue with fallback values
+      }
 
       // Parse full_name into first_name and last_name
       const fullName = profile?.full_name || user.email || 'Staff Member'
@@ -203,7 +214,8 @@ export async function POST(request: Request) {
       const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
       const employee_number = `EMP${timestamp}${random}`
 
-      // Create staff record
+      // Create staff record using serviceClient (bypasses RLS)
+      // IMPORTANT: serviceClient uses service role key which bypasses all RLS policies
       const { data: staff, error: staffError } = await serviceClient
         .from('staff')
         .insert({
@@ -260,20 +272,21 @@ export async function POST(request: Request) {
               details: retryError.details,
               hint: retryError.hint,
             }, null, 2))
-            // Don't fail the invitation acceptance if staff record creation fails
-            // Staff can complete onboarding later to create the record
-            // Or admin can use /api/staff/fix-missing-records to create it
+            // Log but don't fail - admin can use fix-missing-records endpoint
+            // This should not happen with service role, but if it does, we have a backfill
           } else {
-            console.log('Successfully created staff record on retry:', retryStaff)
+            console.log('✅ Successfully created staff record on retry:', retryStaff)
           }
         } else {
-          // Don't fail the invitation acceptance if staff record creation fails
-          // Staff can complete onboarding later to create the record
-          // Or admin can use /api/staff/fix-missing-records to create it
+          // Log the error but don't fail invitation acceptance
+          // This allows the invitation to complete, and admin can fix via /api/staff/fix-missing-records
+          console.error('❌ Failed to create staff record (non-conflict error):', staffError.code)
         }
       } else {
-        console.log('Successfully created staff record:', staff)
+        console.log('✅ Successfully created staff record:', staff)
       }
+    } else {
+      console.log('ℹ️ Staff record already exists for user:', user.id)
     }
   }
 
