@@ -118,3 +118,4 @@ CREATE POLICY staff_status_history_insert_superadmin ON staff_status_history
         public.user_has_role_in_tenant(auth.uid(), tenant_id, 'superadmin')
     );
 
+

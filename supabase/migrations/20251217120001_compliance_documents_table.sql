@@ -90,3 +90,4 @@ COMMENT ON COLUMN staff_compliance_documents.expires_at IS 'Calculated as submit
 COMMENT ON CONSTRAINT check_submission_type ON staff_compliance_documents IS 'Generic constraint: must have file OR reference. API enforces collection_method-specific rules.';
 
 
+

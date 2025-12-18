@@ -101,3 +101,4 @@ COMMENT ON POLICY requirements_select_members ON tenant_compliance_requirements 
 COMMENT ON POLICY documents_update_own_reference_metadata ON staff_compliance_documents IS 'Narrow exception: staff can correct reference metadata typos when status=submitted. Server enforces only these columns are updated.';
 
 
+

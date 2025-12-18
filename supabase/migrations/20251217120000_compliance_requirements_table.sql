@@ -47,3 +47,4 @@ COMMENT ON COLUMN tenant_compliance_requirements.collection_method IS 'upload = 
 COMMENT ON COLUMN tenant_compliance_requirements.applies_to_all IS 'If true, applies to all staff; if false, filtered by role_ids or location_ids';
 
 
+

@@ -435,3 +435,4 @@ If issues arise:
 6. **Real-time Updates**: WebSocket for live updates
 7. **Staff Linking**: Auto-create staff record from profile after onboarding
 
+

@@ -9,3 +9,4 @@ COMMENT ON FUNCTION public.is_tenant_owner IS
 
 
 
+

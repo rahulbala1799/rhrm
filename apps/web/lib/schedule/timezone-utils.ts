@@ -1,18 +1,18 @@
-import { zonedTimeToUtc, utcToZonedTime, format as formatTz } from 'date-fns-tz'
+import { toZonedTime, fromZonedTime, format as formatTz } from 'date-fns-tz'
 import { addDays, startOfDay, format as formatDate } from 'date-fns'
 
 /**
  * Convert UTC timestamp to tenant timezone Date
  */
 export function toTenantTimezone(utcTimestamp: string, timezone: string): Date {
-  return utcToZonedTime(new Date(utcTimestamp), timezone)
+  return toZonedTime(new Date(utcTimestamp), timezone)
 }
 
 /**
  * Convert tenant timezone Date to UTC timestamp string
  */
 export function fromTenantTimezone(localDate: Date, timezone: string): string {
-  return zonedTimeToUtc(localDate, timezone).toISOString()
+  return fromZonedTime(localDate, timezone).toISOString()
 }
 
 /**
@@ -29,7 +29,7 @@ export function getWeekStartInTimezone(weekStartDate: Date, timezone: string): D
   const localMidnight = new Date(year, month, day, 0, 0, 0, 0)
   
   // Convert to UTC using timezone library
-  return zonedTimeToUtc(localMidnight, timezone)
+  return fromZonedTime(localMidnight, timezone)
 }
 
 /**
@@ -49,7 +49,7 @@ export function formatTimeInTimezone(
   timezone: string,
   formatStr: string = 'HH:mm'
 ): string {
-  const zonedDate = utcToZonedTime(new Date(timestamp), timezone)
+  const zonedDate = toZonedTime(new Date(timestamp), timezone)
   return formatTz(zonedDate, formatStr, { timeZone: timezone })
 }
 
@@ -57,7 +57,7 @@ export function formatTimeInTimezone(
  * Get day of week (0-6, Monday-Sunday) in tenant timezone
  */
 export function getDayOfWeekInTimezone(timestamp: string, timezone: string): number {
-  const zonedDate = utcToZonedTime(new Date(timestamp), timezone)
+  const zonedDate = toZonedTime(new Date(timestamp), timezone)
   // date-fns getDay returns 0=Sunday, 1=Monday, etc.
   // We need 0=Monday, 1=Tuesday, etc.
   const day = zonedDate.getDay()
@@ -87,15 +87,15 @@ export function applyTimeToDate(
   // date-fns-tz handles this automatically via zonedTimeToUtc
   
   // Convert to UTC
-  return zonedTimeToUtc(localDateTime, timezone).toISOString()
+  return fromZonedTime(localDateTime, timezone).toISOString()
 }
 
 /**
  * Check if shift crosses midnight in tenant timezone
  */
 export function isOvernight(shift: { start_time: string; end_time: string }, timezone: string): boolean {
-  const startLocal = utcToZonedTime(new Date(shift.start_time), timezone)
-  const endLocal = utcToZonedTime(new Date(shift.end_time), timezone)
+  const startLocal = toZonedTime(new Date(shift.start_time), timezone)
+  const endLocal = toZonedTime(new Date(shift.end_time), timezone)
   
   // Check if end day is different from start day
   return startLocal.getDate() !== endLocal.getDate() ||
@@ -114,7 +114,7 @@ export function getOvernightContinuationDay(
     return null
   }
   
-  const endLocal = utcToZonedTime(new Date(shift.end_time), timezone)
+  const endLocal = toZonedTime(new Date(shift.end_time), timezone)
   return getDayOfWeekInTimezone(shift.end_time, timezone)
 }
 

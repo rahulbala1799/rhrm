@@ -59,9 +59,8 @@ export default function DayColumn({
         const position = getShiftPosition(shift)
         
         return (
-          <ShiftBlock
+          <div
             key={shift.id}
-            shift={shift}
             style={{
               position: 'absolute',
               top: `${position.top}px`,
@@ -69,11 +68,17 @@ export default function DayColumn({
               left: '4px',
               right: '4px',
             }}
-            onClick={() => onShiftClick?.(shift)}
-          />
+          >
+            <ShiftBlock
+              shift={shift}
+              timezone={timezone}
+              onClick={() => onShiftClick?.(shift)}
+            />
+          </div>
         )
       })}
     </div>
   )
 }
+
 
