@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { format, addDays, startOfWeek } from 'date-fns'
-import { Shift } from '../hooks/useWeekShifts'
+import { Shift } from '@/lib/schedule/types'
 import StaffRow from './StaffRow'
 import ColumnTotalsRow from './ColumnTotalsRow'
 import { groupShiftsByStaffAndDay } from '@/lib/schedule/shift-grouping'

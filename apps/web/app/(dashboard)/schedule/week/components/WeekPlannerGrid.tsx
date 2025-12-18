@@ -1,7 +1,7 @@
 'use client'
 
 import { startOfWeek, addDays, format, eachHourOfInterval, startOfDay, endOfDay } from 'date-fns'
-import { Shift } from '../hooks/useWeekShifts'
+import { Shift } from '@/lib/schedule/types'
 import DayColumn from './DayColumn'
 import ShiftBlock from './ShiftBlock'
 

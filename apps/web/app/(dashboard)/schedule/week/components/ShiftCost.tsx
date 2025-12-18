@@ -1,6 +1,6 @@
 'use client'
 
-import { Shift } from '../hooks/useWeekShifts'
+import { Shift } from '@/lib/schedule/types'
 import { calculateShiftCost } from '../utils/budget-calculations'
 import { useFormatCurrency } from '@/app/(dashboard)/hooks/useFormatCurrency'
 

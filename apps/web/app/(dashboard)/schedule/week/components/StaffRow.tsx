@@ -1,7 +1,7 @@
 'use client'
 
 import { format } from 'date-fns'
-import { Shift } from '../hooks/useWeekShifts'
+import { Shift } from '@/lib/schedule/types'
 import DayCell from './DayCell'
 import RowTotalCell from './RowTotalCell'
 import { addDays } from 'date-fns'

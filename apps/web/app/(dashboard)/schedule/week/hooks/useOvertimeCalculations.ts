@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Shift } from './useWeekShifts'
+import { Shift } from '@/lib/schedule/types'
 import { createClient } from '@/lib/supabase/client'
 import { getRatesForStaffBatch, findRateForDate } from '@/lib/staff-rates/utils'
 import {

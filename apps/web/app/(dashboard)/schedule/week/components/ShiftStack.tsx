@@ -1,6 +1,6 @@
 'use client'
 
-import { Shift } from '../hooks/useWeekShifts'
+import { Shift } from '@/lib/schedule/types'
 import ShiftBlock from './ShiftBlock'
 import OvernightContinuationBlock from './OvernightContinuationBlock'
 import { isOvernight, getOvernightContinuationDay } from '@/lib/schedule/timezone-utils'
