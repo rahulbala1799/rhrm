@@ -215,6 +215,7 @@ export default function WeekPlannerPage() {
       const endMinutes = originalEndLocal.getMinutes()
 
       // Apply same HH:mm to target date
+      // applyTimeToDate already returns UTC ISO strings, so we can use them directly
       let newStartTime = applyTimeToDate(targetDate, startHours, startMinutes, timezone)
       let newEndTime = applyTimeToDate(targetDate, endHours, endMinutes, timezone)
 
@@ -224,10 +225,9 @@ export default function WeekPlannerPage() {
         newEndTime = applyTimeToDate(endDate, endHours, endMinutes, timezone)
       }
 
-      // Convert to UTC using shared helper
-      // applyTimeToDate returns ISO string, convert to Date first
-      const startTimeUTC = toUtcIsoInTenantTz(new Date(newStartTime), timezone)
-      const endTimeUTC = toUtcIsoInTenantTz(new Date(newEndTime), timezone)
+      // applyTimeToDate already returns UTC ISO strings, use directly
+      const startTimeUTC = newStartTime
+      const endTimeUTC = newEndTime
 
       await updateShift(shiftId, {
         staff_id: targetStaffId,
