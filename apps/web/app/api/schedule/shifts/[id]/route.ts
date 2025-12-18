@@ -334,13 +334,13 @@ export async function PUT(
   // Transform response to flatten relations (Supabase returns relations as arrays)
   const staff = Array.isArray(updatedShift.staff) ? updatedShift.staff[0] : updatedShift.staff
   const location = Array.isArray(updatedShift.location) ? updatedShift.location[0] : updatedShift.location
-  const role = Array.isArray(updatedShift.job_roles) ? updatedShift.job_roles[0] : updatedShift.job_roles
+  const jobRole = Array.isArray(updatedShift.job_roles) ? updatedShift.job_roles[0] : updatedShift.job_roles
   
   const transformedShift = {
     ...updatedShift,
     staff: staff || null,
     location: location || null,
-    role: role || null,
+    role: jobRole || null,
   }
 
   // Create audit log
