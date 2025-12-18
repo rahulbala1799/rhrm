@@ -84,14 +84,18 @@ export function useOptimisticDayShifts(
   }, [date, tenantId, cacheFilters])
 
   // Merge base shifts with optimistic updates
+  // CRITICAL: Optimistic shifts MUST stay visible during mutations and refetches
+  // The shift should NEVER disappear - it stays in its new position until server confirms or rejects
   const shifts = useMemo(() => {
     const baseMap = new Map(baseShifts.map(s => [s.id, s]))
+    
+    // CRITICAL: Add optimistic shifts - these ALWAYS take precedence
+    // They stay visible even during refetch until server confirms
     optimisticShifts.forEach(opt => {
-      // Only show optimistic if mutation is still pending
-      if (pendingMutationsRef.current.has(opt.id)) {
-        baseMap.set(opt.id, opt)
-      }
+      // Optimistic shifts always overwrite real shifts (shows new position)
+      baseMap.set(opt.id, opt)
     })
+    
     return Array.from(baseMap.values())
   }, [baseShifts, optimisticShifts])
 
