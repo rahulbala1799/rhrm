@@ -46,6 +46,11 @@ export function useWeekShifts(weekStart: Date, filters?: {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [weekEnd, setWeekEnd] = useState<string>('')
+  const [conflicts, setConflicts] = useState<Array<{
+    shift_id: string
+    type: string
+    message: string
+  }>>([])
 
   const fetchShifts = useCallback(async () => {
     try {
@@ -73,6 +78,7 @@ export function useWeekShifts(weekStart: Date, filters?: {
       const data: WeekShiftsResponse = await response.json()
       setShifts(data.shifts || [])
       setWeekEnd(data.weekEnd || '')
+      setConflicts(data.conflicts || [])
     } catch (err: any) {
       console.error('Error fetching shifts:', err)
       setError(err.message || 'Failed to load shifts')
@@ -90,7 +96,7 @@ export function useWeekShifts(weekStart: Date, filters?: {
     weekEnd,
     loading,
     error,
+    conflicts,
     refetch: fetchShifts,
   }
 }
-
