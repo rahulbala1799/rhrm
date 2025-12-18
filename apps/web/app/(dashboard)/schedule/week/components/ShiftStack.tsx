@@ -12,7 +12,7 @@ interface ShiftStackProps {
   dayIndex: number
   timezone: string
   conflicts?: Array<{ shift_id: string; type: string; message: string }>
-  onShiftClick?: (shift: Shift) => void
+  onShiftClick?: (shift: Shift, e?: React.MouseEvent) => void
   onDragStart?: (shift: Shift, e: React.DragEvent) => void
   onDragEnd?: (e: React.DragEvent) => void
   onContextMenu?: (shift: Shift, e: React.MouseEvent) => void
@@ -70,11 +70,11 @@ export default function ShiftStack({
               timezone={timezone}
               conflicts={conflicts}
               isOvernight={shiftIsOvernight}
-              onClick={() => onShiftClick?.(shift)}
-              onDragStart={(e) => onDragStart?.(shift, e)}
-              onDragEnd={onDragEnd}
+              onClick={(e) => onShiftClick?.(shift, e)}
               onContextMenu={(e) => onContextMenu?.(shift, e)}
               isSelected={selectedShiftIds.includes(shift.id)}
+              onDragStart={(e) => onDragStart?.(shift, e)}
+              onDragEnd={onDragEnd}
               budgetViewActive={budgetViewActive}
               staffHourlyRate={staffHourlyRate}
               isLoadingRates={isLoadingRates}

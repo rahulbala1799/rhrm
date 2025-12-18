@@ -292,9 +292,11 @@ export default function StaffRowScheduler({
                     shiftsByDay={staffShiftsByDay}
                     conflicts={conflicts}
                     onShiftClick={onShiftClick}
+                    onContextMenu={onContextMenu}
                     onCellClick={onCellClick}
                     onDragStart={handleDragStart}
                     onDrop={handleDrop}
+                    selectedShiftIds={selectedShiftIds}
                     budgetViewActive={budgetViewActive}
                     staffHourlyRate={staffHourlyRates.get(staff.id) ?? null}
                     isLoadingRates={isLoadingRates}

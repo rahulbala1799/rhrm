@@ -11,7 +11,7 @@ interface ShiftBlockProps {
   conflicts?: Array<{ shift_id: string; type: string; message: string }>
   isGhost?: boolean
   isOvernight?: boolean
-  onClick?: () => void
+  onClick?: (e?: React.MouseEvent) => void
   onDragStart?: (e: React.DragEvent) => void
   onDragEnd?: (e: React.DragEvent) => void
   onContextMenu?: (e: React.MouseEvent) => void
