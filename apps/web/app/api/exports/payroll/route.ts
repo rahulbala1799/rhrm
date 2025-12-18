@@ -3,6 +3,7 @@ import { verifyTenantAccess } from '@/lib/auth/get-tenant-context'
 import { getTenantContext } from '@/lib/auth/get-tenant-context'
 import { NextResponse } from 'next/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { getRatesForStaffBatch, findRateForDate } from '@/lib/staff-rates/utils'
 
 /**
  * Export payroll data (CSV)
@@ -61,8 +62,11 @@ export async function POST(request: Request) {
         id,
         first_name,
         last_name,
-        employee_number,
-        hourly_rate
+        employee_number
+      ),
+      shift:shift_id (
+        id,
+        start_time
       )
     `)
     .eq('tenant_id', tenantId)
@@ -73,6 +77,17 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  // 🚨 CRITICAL: Batch fetch rates to avoid N+1 queries
+  // Get all unique staff IDs and max date
+  const staffIds = [...new Set((timesheets || []).map((ts: any) => ts.staff_id))]
+  const maxDate = (timesheets || []).reduce((max: Date, ts: any) => {
+    const shiftDate = ts.shift?.start_time ? new Date(ts.shift.start_time) : new Date(ts.date)
+    return shiftDate > max ? shiftDate : max
+  }, new Date(0))
+
+  // Single query for all rates
+  const ratesByStaff = await getRatesForStaffBatch(staffIds, maxDate, serviceClient)
 
   // Log export action to audit_logs
   await serviceClient.from('audit_logs').insert({
@@ -93,19 +108,27 @@ export async function POST(request: Request) {
     'Name',
     'Date',
     'Hours',
-    'Rate',
+    'Rate Used',
     'Total',
   ]
 
+  // Resolve rates in memory (no additional queries)
   const rows = (timesheets || []).map((ts: any) => {
     const staff = ts.staff
+    const shiftDate = ts.shift?.start_time 
+      ? new Date(ts.shift.start_time)
+      : new Date(ts.date)
+    
+    const staffRates = ratesByStaff.get(ts.staff_id) || []
+    const rate = findRateForDate(staffRates, shiftDate) || 0
+    
     return [
       staff?.employee_number || '',
       `${staff?.first_name || ''} ${staff?.last_name || ''}`.trim(),
       ts.date,
       ts.total_hours || 0,
-      staff?.hourly_rate || 0,
-      (ts.total_hours || 0) * (staff?.hourly_rate || 0),
+      rate,
+      (ts.total_hours || 0) * rate,
     ]
   })
 
