@@ -626,7 +626,10 @@ export default function DailyCanvas({
                             shift={shift}
                             timezone={timezone}
                             conflicts={conflicts}
-                            onClick={(e) => handleShiftClick(e, shift)}
+                            onClick={(e: React.MouseEvent<Element>) => {
+                              e.stopPropagation()
+                              handleShiftClick(e, shift)
+                            }}
                             onDragStart={(e) => handleShiftDragStart(e, shift)}
                             onResizeStart={(e, edge) => handleShiftResizeStart(e, shift, edge)}
                             onContextMenu={(e) => {

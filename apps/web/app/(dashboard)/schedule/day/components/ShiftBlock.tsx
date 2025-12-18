@@ -8,7 +8,7 @@ interface ShiftBlockProps {
   shift: Shift
   timezone: string
   conflicts?: Array<{ shift_id: string; type: string; message: string }>
-  onClick?: (e?: React.MouseEvent) => void
+  onClick?: (e: React.MouseEvent) => void
   onDragStart?: (e: React.MouseEvent) => void
   onResizeStart?: (e: React.MouseEvent, edge: 'left' | 'right') => void
   onContextMenu?: (e: React.MouseEvent) => void
