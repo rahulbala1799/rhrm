@@ -129,6 +129,60 @@ export async function PUT(
     updateData.location_id = body.location_id
   }
 
+  if (body.role_id !== undefined) {
+    if (body.role_id === null) {
+      updateData.role_id = null
+    } else {
+      if (!uuidRegex.test(body.role_id)) {
+        return NextResponse.json(
+          { error: 'Invalid UUID format for role_id' },
+          { status: 400 }
+        )
+      }
+
+      // Verify role exists and belongs to tenant
+      const { data: roleRecord } = await supabase
+        .from('job_roles')
+        .select('id, is_active')
+        .eq('id', body.role_id)
+        .eq('tenant_id', tenantId)
+        .single()
+
+      if (!roleRecord) {
+        return NextResponse.json(
+          { error: 'Role not found or not in tenant' },
+          { status: 404 }
+        )
+      }
+
+      if (!roleRecord.is_active) {
+        return NextResponse.json(
+          { error: 'Cannot assign inactive role to shift' },
+          { status: 400 }
+        )
+      }
+
+      // Verify role is assigned to staff
+      const staffIdToCheck = updateData.staff_id || existingShift.staff_id
+      const { data: staffRole } = await supabase
+        .from('staff_roles')
+        .select('id')
+        .eq('staff_id', staffIdToCheck)
+        .eq('role_id', body.role_id)
+        .eq('tenant_id', tenantId)
+        .single()
+
+      if (!staffRole) {
+        return NextResponse.json(
+          { error: 'Role is not assigned to this staff member' },
+          { status: 400 }
+        )
+      }
+
+      updateData.role_id = body.role_id
+    }
+  }
+
   if (body.start_time !== undefined) {
     const startTime = new Date(body.start_time)
     if (isNaN(startTime.getTime())) {
@@ -220,6 +274,7 @@ export async function PUT(
       id,
       staff_id,
       location_id,
+      role_id,
       start_time,
       end_time,
       break_duration_minutes,
@@ -238,6 +293,12 @@ export async function PUT(
       location:location_id (
         id,
         name
+      ),
+      job_roles:role_id (
+        id,
+        name,
+        bg_color,
+        text_color
       )
     `)
     .single()
@@ -273,11 +334,13 @@ export async function PUT(
   // Transform response to flatten relations (Supabase returns relations as arrays)
   const staff = Array.isArray(updatedShift.staff) ? updatedShift.staff[0] : updatedShift.staff
   const location = Array.isArray(updatedShift.location) ? updatedShift.location[0] : updatedShift.location
+  const role = Array.isArray(updatedShift.job_roles) ? updatedShift.job_roles[0] : updatedShift.job_roles
   
   const transformedShift = {
     ...updatedShift,
     staff: staff || null,
     location: location || null,
+    role: role || null,
   }
 
   // Create audit log

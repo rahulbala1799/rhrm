@@ -166,6 +166,7 @@ export default function WeekPlannerPage() {
         await updateShift(editingShift.id, {
           staff_id: formData.staff_id,
           location_id: formData.location_id,
+          role_id: formData.role_id || null,
           start_time: startTime,
           end_time: endTime,
           break_duration_minutes: formData.break_duration_minutes || 0,
@@ -177,6 +178,7 @@ export default function WeekPlannerPage() {
         await createShift({
           staff_id: formData.staff_id,
           location_id: formData.location_id,
+          role_id: formData.role_id || null,
           start_time: startTime,
           end_time: endTime,
           break_duration_minutes: formData.break_duration_minutes || 0,

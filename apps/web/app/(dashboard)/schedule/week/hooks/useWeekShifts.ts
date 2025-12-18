@@ -7,6 +7,7 @@ export interface Shift {
   id: string
   staff_id: string
   location_id: string
+  role_id?: string | null
   start_time: string
   end_time: string
   break_duration_minutes: number
@@ -22,6 +23,12 @@ export interface Shift {
   location: {
     id: string
     name: string
+  } | null
+  role?: {
+    id: string
+    name: string
+    bg_color: string
+    text_color: string
   } | null
 }
 

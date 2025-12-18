@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   const body = await request.json()
 
   // Validate required fields
-  const { staff_id, location_id, start_time, end_time, break_duration_minutes, notes, status } = body
+  const { staff_id, location_id, role_id, start_time, end_time, break_duration_minutes, notes, status } = body
 
   if (!staff_id || !location_id || !start_time || !end_time) {
     return NextResponse.json(
@@ -83,6 +83,55 @@ export async function POST(request: Request) {
     )
   }
 
+  // Validate role_id if provided
+  if (role_id) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(role_id)) {
+      return NextResponse.json(
+        { error: 'Invalid UUID format for role_id' },
+        { status: 400 }
+      )
+    }
+
+    // Verify role exists and belongs to tenant
+    const { data: roleRecord } = await supabase
+      .from('job_roles')
+      .select('id, is_active')
+      .eq('id', role_id)
+      .eq('tenant_id', tenantId)
+      .single()
+
+    if (!roleRecord) {
+      return NextResponse.json(
+        { error: 'Role not found or not in tenant' },
+        { status: 404 }
+      )
+    }
+
+    if (!roleRecord.is_active) {
+      return NextResponse.json(
+        { error: 'Cannot assign inactive role to shift' },
+        { status: 400 }
+      )
+    }
+
+    // Verify role is assigned to staff
+    const { data: staffRole } = await supabase
+      .from('staff_roles')
+      .select('id')
+      .eq('staff_id', staff_id)
+      .eq('role_id', role_id)
+      .eq('tenant_id', tenantId)
+      .single()
+
+    if (!staffRole) {
+      return NextResponse.json(
+        { error: 'Role is not assigned to this staff member' },
+        { status: 400 }
+      )
+    }
+  }
+
   const { data: locationRecord } = await supabase
     .from('locations')
     .select('id')
@@ -131,6 +180,7 @@ export async function POST(request: Request) {
       tenant_id: tenantId,
       staff_id,
       location_id,
+      role_id: role_id || null,
       start_time: start_time,
       end_time: end_time,
       break_duration_minutes: break_duration_minutes || 0,
@@ -142,6 +192,7 @@ export async function POST(request: Request) {
       id,
       staff_id,
       location_id,
+      role_id,
       start_time,
       end_time,
       break_duration_minutes,
@@ -160,6 +211,12 @@ export async function POST(request: Request) {
       location:location_id (
         id,
         name
+      ),
+      job_roles:role_id (
+        id,
+        name,
+        bg_color,
+        text_color
       )
     `)
     .single()
@@ -175,11 +232,13 @@ export async function POST(request: Request) {
   // Transform response to flatten relations (Supabase returns relations as arrays)
   const staff = Array.isArray(shift.staff) ? shift.staff[0] : shift.staff
   const location = Array.isArray(shift.location) ? shift.location[0] : shift.location
+  const role = Array.isArray(shift.job_roles) ? shift.job_roles[0] : shift.job_roles
   
   const transformedShift = {
     ...shift,
     staff: staff || null,
     location: location || null,
+    role: role || null,
   }
 
   // Create audit log

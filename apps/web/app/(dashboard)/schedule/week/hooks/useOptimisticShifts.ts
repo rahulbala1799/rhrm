@@ -77,6 +77,7 @@ export function useOptimisticShifts(
       id: tempId,
       staff_id: shiftData.staff_id!,
       location_id: shiftData.location_id!,
+      role_id: shiftData.role_id || null,
       start_time: shiftData.start_time!,
       end_time: shiftData.end_time!,
       break_duration_minutes: shiftData.break_duration_minutes || 0,
@@ -84,6 +85,7 @@ export function useOptimisticShifts(
       notes: shiftData.notes || null,
       staff: shiftData.staff || null,
       location: shiftData.location || null,
+      role: shiftData.role || null,
       _tempId: tempId,
       _isOptimistic: true,
     }
@@ -106,6 +108,7 @@ export function useOptimisticShifts(
         body: JSON.stringify({
           staff_id: shiftData.staff_id,
           location_id: shiftData.location_id,
+          role_id: shiftData.role_id || null,
           start_time: shiftData.start_time,
           end_time: shiftData.end_time,
           break_duration_minutes: shiftData.break_duration_minutes || 0,

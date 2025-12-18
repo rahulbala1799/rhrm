@@ -19,6 +19,7 @@ interface ShiftModalProps {
 export interface ShiftFormData {
   staff_id: string
   location_id: string
+  role_id?: string | null
   start_time: string
   end_time: string
   break_duration_minutes: number
@@ -39,6 +40,7 @@ export default function ShiftModal({
   const [formData, setFormData] = useState<ShiftFormData>({
     staff_id: '',
     location_id: '',
+    role_id: null,
     start_time: '',
     end_time: '',
     break_duration_minutes: 0,
@@ -47,6 +49,59 @@ export default function ShiftModal({
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [staffRoles, setStaffRoles] = useState<Array<{ id: string; name: string; description: string | null; bg_color: string; text_color: string }>>([])
+  const [staffLocations, setStaffLocations] = useState<Array<{ id: string; name: string }>>([])
+  const [loadingStaffData, setLoadingStaffData] = useState(false)
+
+  // Fetch staff roles and locations when staff_id changes
+  useEffect(() => {
+    if (formData.staff_id) {
+      fetchStaffRolesAndLocations(formData.staff_id)
+    } else {
+      setStaffRoles([])
+      setStaffLocations([])
+    }
+  }, [formData.staff_id])
+
+  const fetchStaffRolesAndLocations = async (staffId: string) => {
+    setLoadingStaffData(true)
+    try {
+      // Fetch roles
+      const rolesResponse = await fetch(`/api/staff/${staffId}/roles`)
+      if (rolesResponse.ok) {
+        const { roles } = await rolesResponse.json()
+        setStaffRoles(roles || [])
+
+        // Auto-select role if only one
+        if (roles && roles.length === 1 && !shift) {
+          setFormData(prev => ({ ...prev, role_id: roles[0].id }))
+        } else if (shift && shift.role_id) {
+          setFormData(prev => ({ ...prev, role_id: shift.role_id }))
+        }
+      }
+
+      // Fetch staff record to get location_id
+      const staffResponse = await fetch(`/api/staff/${staffId}`)
+      if (staffResponse.ok) {
+        const { staff } = await staffResponse.json()
+        if (staff?.location_id) {
+          // Check if staff has only one location
+          const staffLocation = locationList.find(loc => loc.id === staff.location_id)
+          if (staffLocation) {
+            setStaffLocations([staffLocation])
+            // Auto-select location if only one and not editing
+            if (!shift) {
+              setFormData(prev => ({ ...prev, location_id: staff.location_id }))
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching staff data:', error)
+    } finally {
+      setLoadingStaffData(false)
+    }
+  }
 
   useEffect(() => {
     if (shift) {
@@ -57,12 +112,17 @@ export default function ShiftModal({
       setFormData({
         staff_id: shift.staff_id,
         location_id: shift.location_id,
+        role_id: shift.role_id || null,
         start_time: format(startTime, "yyyy-MM-dd'T'HH:mm"),
         end_time: format(endTime, "yyyy-MM-dd'T'HH:mm"),
         break_duration_minutes: shift.break_duration_minutes || 0,
         notes: shift.notes || '',
         status: shift.status,
       })
+      // Fetch roles for this staff
+      if (shift.staff_id) {
+        fetchStaffRolesAndLocations(shift.staff_id)
+      }
     } else if (defaultDate && defaultStaffId) {
       // Creating new shift with defaults
       const defaultStart = new Date(defaultDate)
@@ -73,12 +133,17 @@ export default function ShiftModal({
       setFormData({
         staff_id: defaultStaffId,
         location_id: '',
+        role_id: null,
         start_time: format(defaultStart, "yyyy-MM-dd'T'HH:mm"),
         end_time: format(defaultEnd, "yyyy-MM-dd'T'HH:mm"),
         break_duration_minutes: 30,
         notes: '',
         status: 'draft',
       })
+      // Fetch roles for default staff
+      if (defaultStaffId) {
+        fetchStaffRolesAndLocations(defaultStaffId)
+      }
     } else {
       // Creating new shift without defaults
       const now = new Date()
@@ -90,6 +155,7 @@ export default function ShiftModal({
       setFormData({
         staff_id: '',
         location_id: '',
+        role_id: null,
         start_time: format(defaultStart, "yyyy-MM-dd'T'HH:mm"),
         end_time: format(defaultEnd, "yyyy-MM-dd'T'HH:mm"),
         break_duration_minutes: 30,
@@ -163,25 +229,52 @@ export default function ShiftModal({
                 </select>
               </div>
 
-              {/* Location */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Location *
-                </label>
-                <select
-                  value={formData.location_id}
-                  onChange={(e) => setFormData({ ...formData, location_id: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select location</option>
-                  {locationList.map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Role - Show if staff has 2+ roles or 0 roles */}
+              {staffRoles.length !== 1 && formData.staff_id && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Role {staffRoles.length > 1 ? '*' : ''}
+                  </label>
+                  <select
+                    value={formData.role_id || ''}
+                    onChange={(e) => setFormData({ ...formData, role_id: e.target.value || null })}
+                    required={staffRoles.length > 1}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">{staffRoles.length === 0 ? 'No roles assigned (optional)' : 'Select role'}</option>
+                    {staffRoles.map((role) => (
+                      <option key={role.id} value={role.id} title={role.description || undefined}>
+                        {role.name}
+                      </option>
+                    ))}
+                  </select>
+                  {staffRoles.length === 0 && (
+                    <p className="mt-1 text-xs text-gray-500">Assign roles to this staff member in their profile</p>
+                  )}
+                </div>
+              )}
+
+              {/* Location - Show if staff has 2+ locations or 0 locations */}
+              {(staffLocations.length !== 1 || !formData.staff_id) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Location *
+                  </label>
+                  <select
+                    value={formData.location_id}
+                    onChange={(e) => setFormData({ ...formData, location_id: e.target.value })}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Select location</option>
+                    {locationList.map((location) => (
+                      <option key={location.id} value={location.id}>
+                        {location.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Start Time */}
               <div>

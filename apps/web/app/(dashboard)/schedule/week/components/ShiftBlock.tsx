@@ -68,22 +68,35 @@ export default function ShiftBlock({
   }
 
   // Primary block shows full details
+  // Use role colors if available, otherwise fallback to status colors
+  const bgColor = shift.role?.bg_color || (statusColors[shift.status].includes('bg-') ? undefined : '#E5E7EB')
+  const textColor = shift.role?.text_color || (statusColors[shift.status].includes('text-') ? undefined : '#1F2937')
+  const borderColor = shift.role?.bg_color || undefined
+
+  // Determine if we should use inline styles (role colors) or classes (status colors)
+  const useRoleColors = shift.role && shift.role.bg_color && shift.role.text_color
+
   return (
     <button
       className={`
         w-full rounded-lg border-2 p-2 text-left
         hover:shadow-md transition-shadow
         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
-        ${statusColors[shift.status]}
-        ${shift.status === 'cancelled' ? 'cursor-not-allowed' : 'cursor-pointer'}
+        ${!useRoleColors ? statusColors[shift.status] : ''}
+        ${shift.status === 'cancelled' ? 'cursor-not-allowed opacity-60 line-through' : 'cursor-pointer'}
       `}
+      style={useRoleColors ? {
+        backgroundColor: bgColor,
+        color: textColor,
+        borderColor: borderColor,
+      } : undefined}
       onClick={onClick}
       draggable={shift.status !== 'cancelled'}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       disabled={shift.status === 'cancelled'}
-      title={`${timeStr} - ${locationName}${warningConflict ? ` - ${warningConflict.message}` : ''}`}
-      aria-label={`Shift ${timeStr} at ${locationName}${warningConflict ? ` - ${warningConflict.message}` : ''}`}
+      title={`${shift.role?.name ? `${shift.role.name} - ` : ''}${timeStr} - ${locationName}${warningConflict ? ` - ${warningConflict.message}` : ''}`}
+      aria-label={`${shift.role?.name ? `${shift.role.name} ` : ''}Shift ${timeStr} at ${locationName}${warningConflict ? ` - ${warningConflict.message}` : ''}`}
     >
       <div className="flex items-start justify-between gap-1">
         <div className="flex-1 min-w-0">

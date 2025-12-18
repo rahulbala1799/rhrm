@@ -56,6 +56,7 @@ export async function GET(request: Request) {
       id,
       staff_id,
       location_id,
+      role_id,
       start_time,
       end_time,
       break_duration_minutes,
@@ -74,6 +75,12 @@ export async function GET(request: Request) {
       location:location_id (
         id,
         name
+      ),
+      job_roles:role_id (
+        id,
+        name,
+        bg_color,
+        text_color
       )
     `)
     .eq('tenant_id', tenantId)
@@ -154,6 +161,7 @@ export async function GET(request: Request) {
     ...shift,
     staff: Array.isArray(shift.staff) ? shift.staff[0] || null : shift.staff || null,
     location: Array.isArray(shift.location) ? shift.location[0] || null : shift.location || null,
+    role: Array.isArray(shift.job_roles) ? shift.job_roles[0] || null : shift.job_roles || null,
   }))
 
   // Get week end date for response
