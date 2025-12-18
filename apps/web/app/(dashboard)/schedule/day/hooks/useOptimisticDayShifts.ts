@@ -10,6 +10,7 @@ import { mutate } from 'swr'
 import { getDayCacheKey, CacheFilters } from '../../hooks/useScheduleCache'
 
 interface OptimisticShift extends Shift {
+  _tempId?: string
   _isOptimistic?: boolean
 }
 
