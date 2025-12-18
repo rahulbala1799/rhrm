@@ -30,7 +30,7 @@ export async function PUT(
   // Verify role exists and belongs to tenant
   const { data: existing } = await supabase
     .from('job_roles')
-    .select('id, tenant_id, name')
+    .select('id, tenant_id, name, bg_color, text_color')
     .eq('id', params.id)
     .eq('tenant_id', tenantId)
     .single()
