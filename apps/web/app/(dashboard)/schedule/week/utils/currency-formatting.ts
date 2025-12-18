@@ -2,6 +2,7 @@ import { SupportedCurrency, CURRENCY_CONFIGS } from '@/lib/currency/types'
 
 /**
  * Format amount as currency with consistent symbol placement (symbol before number)
+ * and always use period (.) as decimal separator
  * This ensures all currencies display as: €20.50, $20.50, £20.50
  * 
  * @param amount - Amount to format (can be null)
@@ -20,8 +21,9 @@ export function formatCurrency(
   
   const config = CURRENCY_CONFIGS[currency]
   
-  // Format number with proper locale (for decimal separator, thousand separator)
-  const numberFormatter = new Intl.NumberFormat(config.locale, {
+  // Format number with period as decimal separator and comma as thousand separator
+  // Always use en-US number formatting for consistent decimal point
+  const numberFormatter = new Intl.NumberFormat('en-US', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   })
