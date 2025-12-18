@@ -4,7 +4,7 @@
 // 2. Calculate in tenant timezone
 // 3. Convert back to UTC for storage/API
 
-import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz'
+import { toZonedTime, fromZonedTime } from 'date-fns-tz'
 import { differenceInCalendarDays } from 'date-fns'
 
 export interface PayPeriodConfig {
@@ -63,9 +63,9 @@ export function isDateInPayPeriod(
   payPeriod: PayPeriod,
   timezone: string = 'UTC'
 ): boolean {
-  const dateInTz = utcToZonedTime(date, timezone)
-  const startInTz = utcToZonedTime(payPeriod.start, timezone)
-  const endInTz = utcToZonedTime(payPeriod.end, timezone)
+  const dateInTz = toZonedTime(date, timezone)
+  const startInTz = toZonedTime(payPeriod.start, timezone)
+  const endInTz = toZonedTime(payPeriod.end, timezone)
   
   return dateInTz >= startInTz && dateInTz < endInTz
 }
@@ -77,7 +77,7 @@ export function getWeeklyPayPeriod(
   timezone: string
 ): PayPeriod {
   // 1. Convert input to tenant timezone
-  const dateInTz = utcToZonedTime(date, timezone)
+  const dateInTz = toZonedTime(date, timezone)
   
   // 2. Calculate in tenant timezone
   const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
@@ -94,8 +94,8 @@ export function getWeeklyPayPeriod(
   endInTz.setDate(endInTz.getDate() + 7)
   
   // 3. Convert back to UTC for storage/API
-  const start = zonedTimeToUtc(startInTz, timezone)
-  const end = zonedTimeToUtc(endInTz, timezone)
+  const start = fromZonedTime(startInTz, timezone)
+  const end = fromZonedTime(endInTz, timezone)
   
   return { start, end }
 }
@@ -114,11 +114,11 @@ export function getFortnightlyPayPeriod(
   }
   
   // 1. Convert input to tenant timezone
-  const dateInTz = utcToZonedTime(date, timezone)
+  const dateInTz = toZonedTime(date, timezone)
   
   // 2. Convert reference date to tenant timezone (single conversion)
   const referenceDateUtc = new Date(firstPeriodStart + 'T00:00:00Z')
-  const refInTz = utcToZonedTime(referenceDateUtc, timezone)
+  const refInTz = toZonedTime(referenceDateUtc, timezone)
   
   // 3. Calculate using calendar days (DST-safe - avoids getTime() / 24h bug)
   const daysDiff = differenceInCalendarDays(dateInTz, refInTz)
@@ -132,8 +132,8 @@ export function getFortnightlyPayPeriod(
   periodEndInTz.setDate(periodEndInTz.getDate() + 14)
   
   // 4. Convert back to UTC
-  const start = zonedTimeToUtc(periodStartInTz, timezone)
-  const end = zonedTimeToUtc(periodEndInTz, timezone)
+  const start = fromZonedTime(periodStartInTz, timezone)
+  const end = fromZonedTime(periodEndInTz, timezone)
   
   return { start, end }
 }
@@ -145,7 +145,7 @@ export function getSemiMonthlyPayPeriod(
   timezone: string
 ): PayPeriod {
   // 1. Convert input to tenant timezone
-  const dateInTz = utcToZonedTime(date, timezone)
+  const dateInTz = toZonedTime(date, timezone)
   const year = dateInTz.getFullYear()
   const month = dateInTz.getMonth()
   const day = dateInTz.getDate()
@@ -163,8 +163,8 @@ export function getSemiMonthlyPayPeriod(
   }
   
   // 3. Convert back to UTC
-  const start = zonedTimeToUtc(startInTz, timezone)
-  const end = zonedTimeToUtc(endInTz, timezone)
+  const start = fromZonedTime(startInTz, timezone)
+  const end = fromZonedTime(endInTz, timezone)
   
   return { start, end }
 }
@@ -176,7 +176,7 @@ export function getMonthlyPayPeriod(
   timezone: string
 ): PayPeriod {
   // 1. Convert input to tenant timezone
-  const dateInTz = utcToZonedTime(date, timezone)
+  const dateInTz = toZonedTime(date, timezone)
   const year = dateInTz.getFullYear()
   const month = dateInTz.getMonth()
   
@@ -191,8 +191,8 @@ export function getMonthlyPayPeriod(
   const endInTz = new Date(year, month + 1, actualEndDay, 0, 0, 0, 0)
   
   // 4. Convert back to UTC
-  const start = zonedTimeToUtc(startInTz, timezone)
-  const end = zonedTimeToUtc(endInTz, timezone)
+  const start = fromZonedTime(startInTz, timezone)
+  const end = fromZonedTime(endInTz, timezone)
   
   return { start, end }
 }
