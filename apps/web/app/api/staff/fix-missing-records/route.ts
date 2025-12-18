@@ -4,6 +4,29 @@ import { NextResponse } from 'next/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 /**
+ * GET /api/staff/fix-missing-records
+ * Returns information about missing staff records
+ */
+export async function GET() {
+  const { tenantId, role } = await getTenantContext()
+
+  if (!tenantId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Only admin and manager can access this
+  if (role !== 'admin' && role !== 'manager' && role !== 'superadmin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  return NextResponse.json({
+    message: 'This endpoint fixes missing staff records. Use POST method to execute the fix.',
+    usage: 'POST /api/staff/fix-missing-records',
+    description: 'Creates missing staff records for accepted invitations that don\'t have staff records',
+  })
+}
+
+/**
  * POST /api/staff/fix-missing-records
  * Creates missing staff records for accepted invitations that don't have staff records
  * Only accessible to admins/managers for troubleshooting
