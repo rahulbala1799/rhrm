@@ -90,6 +90,7 @@ export async function POST() {
 
   if (staffError) {
     console.error('Error creating staff record:', staffError)
+    console.error('Staff error details:', JSON.stringify(staffError, null, 2))
     // If employee number conflict, try again with different number
     if (staffError.code === '23505') { // Unique violation
       const retryTimestamp = Date.now().toString().slice(-6)
@@ -113,7 +114,12 @@ export async function POST() {
 
       if (retryError) {
         console.error('Error creating staff record (retry):', retryError)
-        return NextResponse.json({ error: 'Failed to create staff record' }, { status: 500 })
+        console.error('Retry error details:', JSON.stringify(retryError, null, 2))
+        return NextResponse.json({ 
+          error: 'Failed to create staff record', 
+          details: retryError.message,
+          code: retryError.code 
+        }, { status: 500 })
       }
 
       // Mark onboarding as complete
@@ -137,7 +143,12 @@ export async function POST() {
       })
     }
 
-    return NextResponse.json({ error: 'Failed to create staff record' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Failed to create staff record', 
+      details: staffError.message,
+      code: staffError.code,
+      hint: staffError.code === '23505' ? 'Employee number conflict - this should have been retried' : 'Unknown error'
+    }, { status: 500 })
   }
 
   // Mark onboarding as complete
