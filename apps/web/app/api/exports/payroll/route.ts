@@ -80,7 +80,7 @@ export async function POST(request: Request) {
 
   // 🚨 CRITICAL: Batch fetch rates to avoid N+1 queries
   // Get all unique staff IDs and max date
-  const staffIds = [...new Set((timesheets || []).map((ts: any) => ts.staff_id))]
+  const staffIds = Array.from(new Set((timesheets || []).map((ts: any) => ts.staff_id)))
   const maxDate = (timesheets || []).reduce((max: Date, ts: any) => {
     const shiftDate = ts.shift?.start_time ? new Date(ts.shift.start_time) : new Date(ts.date)
     return shiftDate > max ? shiftDate : max

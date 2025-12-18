@@ -77,7 +77,7 @@ export async function calculateShiftCostsBatch(
   }
 
   // Get unique staff IDs and max date
-  const staffIds = [...new Set(shifts.map(s => s.staff_id))]
+  const staffIds = Array.from(new Set(shifts.map(s => s.staff_id)))
   const maxDate = shifts.reduce((max, shift) => {
     const shiftDate = new Date(shift.start_time)
     return shiftDate > max ? shiftDate : max
