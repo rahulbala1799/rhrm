@@ -6,6 +6,7 @@ import DayCell from './DayCell'
 import RowTotalCell from './RowTotalCell'
 import { addDays } from 'date-fns'
 import { calculateRowTotal } from '../utils/budget-calculations'
+import { useMemo } from 'react'
 
 interface Staff {
   id: string
@@ -34,6 +35,15 @@ interface StaffRowProps {
   budgetViewActive?: boolean
   staffHourlyRate?: number | null
   isLoadingRates?: boolean
+  overtimeShiftCosts?: Map<string, {
+    regularHours: number
+    overtimeHours: number
+    regularCost: number
+    overtimeCost: number
+    totalCost: number
+    hasOvertime: boolean
+    resolvedHourlyRate: number | null
+  }>
 }
 
 export default function StaffRow({
@@ -50,6 +60,7 @@ export default function StaffRow({
   budgetViewActive = false,
   staffHourlyRate = null,
   isLoadingRates = false,
+  overtimeShiftCosts = new Map(),
 }: StaffRowProps) {
   // Display name: preferred_name ?? first_name ?? last_name ?? "Unnamed"
   const displayName = staff.preferred_name || staff.first_name || staff.last_name || 'Unnamed'
@@ -62,9 +73,22 @@ export default function StaffRow({
     return { dayIndex: i, dayDate }
   })
 
-  // Calculate row total for budget view
+  // Calculate row total for budget view (with overtime if available)
   const allStaffShifts = Array.from(shiftsByDay.values()).flat()
-  const rowTotal = budgetViewActive ? calculateRowTotal(allStaffShifts, staffHourlyRate) : 0
+  const rowTotal = useMemo(() => {
+    if (!budgetViewActive) return 0
+    
+    // Use overtime costs if available
+    if (overtimeShiftCosts.size > 0) {
+      return allStaffShifts.reduce((sum, shift) => {
+        const cost = overtimeShiftCosts.get(shift.id)
+        return sum + (cost?.totalCost || 0)
+      }, 0)
+    }
+    
+    // Fallback to basic calculation
+    return calculateRowTotal(allStaffShifts, staffHourlyRate)
+  }, [budgetViewActive, allStaffShifts, overtimeShiftCosts, staffHourlyRate])
 
   return (
     <div className="flex border-b border-gray-200">
@@ -81,25 +105,37 @@ export default function StaffRow({
       </div>
 
       {/* Day cells */}
-      {days.map(({ dayIndex, dayDate }) => (
-        <DayCell
-          key={dayIndex}
-          staffId={staff.id}
-          dayIndex={dayIndex}
-          dayDate={dayDate}
-          shifts={shiftsByDay.get(dayIndex) || []}
-          timezone={timezone}
-          conflicts={conflicts}
-          onShiftClick={onShiftClick}
-          onCellClick={onCellClick}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
-          onDrop={onDrop}
-          budgetViewActive={budgetViewActive}
-          staffHourlyRate={staffHourlyRate}
-          isLoadingRates={isLoadingRates}
-        />
-      ))}
+      {days.map(({ dayIndex, dayDate }) => {
+        const dayShifts = shiftsByDay.get(dayIndex) || []
+        const dayOvertimeCosts = new Map<string, any>()
+        dayShifts.forEach(shift => {
+          const cost = overtimeShiftCosts.get(shift.id)
+          if (cost) {
+            dayOvertimeCosts.set(shift.id, cost)
+          }
+        })
+        
+        return (
+          <DayCell
+            key={dayIndex}
+            staffId={staff.id}
+            dayIndex={dayIndex}
+            dayDate={dayDate}
+            shifts={dayShifts}
+            timezone={timezone}
+            conflicts={conflicts}
+            onShiftClick={onShiftClick}
+            onCellClick={onCellClick}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            onDrop={onDrop}
+            budgetViewActive={budgetViewActive}
+            staffHourlyRate={staffHourlyRate}
+            isLoadingRates={isLoadingRates}
+            overtimeShiftCosts={dayOvertimeCosts}
+          />
+        )
+      })}
       
       {/* Row total cell */}
       {budgetViewActive && (

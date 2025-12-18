@@ -11,9 +11,11 @@ import { useWeekShifts, Shift, WeekShiftsResponse } from './hooks/useWeekShifts'
 import { useTenantSettings } from './hooks/useTenantSettings'
 import { useOptimisticShifts } from './hooks/useOptimisticShifts'
 import { useBudgetViewToggle } from './hooks/useBudgetViewToggle'
+import { useOvertimeCalculations } from './hooks/useOvertimeCalculations'
 import { applyTimeToDate, toTenantTimezone } from '@/lib/schedule/timezone-utils'
 import { CloudArrowUpIcon, LockClosedIcon } from '@heroicons/react/24/outline'
 import BudgetViewErrorBoundary from './components/BudgetViewErrorBoundary'
+
 
 export default function WeekPlannerPage() {
   const [currentWeek, setCurrentWeek] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }))
@@ -33,6 +35,15 @@ export default function WeekPlannerPage() {
   const [locationList, setLocationList] = useState<Array<{ id: string; name: string }>>([])
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
   const [staffHourlyRates, setStaffHourlyRates] = useState<Map<string, number | null>>(new Map())
+  const [staffOvertimeConfigs, setStaffOvertimeConfigs] = useState<Map<string, {
+    contractedWeeklyHours: number | null
+    overtimeEnabled: boolean | null
+    overtimeRuleType: 'multiplier' | 'flat_extra' | null
+    overtimeMultiplier: number | null
+    overtimeFlatExtra: number | null
+    payFrequency: 'weekly' | 'fortnightly' | 'monthly' | null
+  }>>(new Map())
+  const [payPeriodConfig, setPayPeriodConfig] = useState<any>(null)
   const [isLoadingRates, setIsLoadingRates] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
 
@@ -72,6 +83,22 @@ export default function WeekPlannerPage() {
     fetchRole()
   }, [])
 
+  // Fetch pay period config
+  useEffect(() => {
+    const fetchPayPeriodConfig = async () => {
+      try {
+        const response = await fetch('/api/settings/pay-period')
+        if (response.ok) {
+          const data = await response.json()
+          setPayPeriodConfig(data.config)
+        }
+      } catch (err) {
+        console.error('Error fetching pay period config:', err)
+      }
+    }
+    fetchPayPeriodConfig()
+  }, [])
+
   // Fetch staff and locations
   useEffect(() => {
     const fetchStaff = async () => {
@@ -92,13 +119,31 @@ export default function WeekPlannerPage() {
             }))
           )
           
-          // Extract hourly rates if user has permission
+          // Extract hourly rates and overtime config if user has permission
           if (canViewBudget) {
             const rates = new Map<string, number | null>()
+            const overtimeConfigs = new Map<string, {
+              contractedWeeklyHours: number | null
+              overtimeEnabled: boolean | null
+              overtimeRuleType: 'multiplier' | 'flat_extra' | null
+              overtimeMultiplier: number | null
+              overtimeFlatExtra: number | null
+              payFrequency: 'weekly' | 'fortnightly' | 'monthly' | null
+            }>()
+            
             ;(data.staff || []).forEach((staff: any) => {
               rates.set(staff.id, staff.hourly_rate ?? null)
+              overtimeConfigs.set(staff.id, {
+                contractedWeeklyHours: staff.contracted_weekly_hours ?? null,
+                overtimeEnabled: staff.overtime_enabled ?? null,
+                overtimeRuleType: staff.overtime_rule_type ?? null,
+                overtimeMultiplier: staff.overtime_multiplier ?? null,
+                overtimeFlatExtra: staff.overtime_flat_extra ?? null,
+                payFrequency: staff.pay_frequency ?? null,
+              })
             })
             setStaffHourlyRates(rates)
+            setStaffOvertimeConfigs(overtimeConfigs)
             setIsLoadingRates(false)
           }
         }
@@ -314,6 +359,8 @@ export default function WeekPlannerPage() {
               budgetViewActive={budgetViewActive && canViewBudget}
               staffHourlyRates={staffHourlyRates}
               isLoadingRates={isLoadingRates}
+              staffOvertimeConfigs={staffOvertimeConfigs}
+              payPeriodConfig={payPeriodConfig}
             />
           </BudgetViewErrorBoundary>
         )}

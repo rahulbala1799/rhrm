@@ -18,6 +18,15 @@ interface ShiftStackProps {
   budgetViewActive?: boolean
   staffHourlyRate?: number | null
   isLoadingRates?: boolean
+  overtimeShiftCosts?: Map<string, {
+    regularHours: number
+    overtimeHours: number
+    regularCost: number
+    overtimeCost: number
+    totalCost: number
+    hasOvertime: boolean
+    resolvedHourlyRate: number | null
+  }>
 }
 
 export default function ShiftStack({
@@ -31,6 +40,7 @@ export default function ShiftStack({
   budgetViewActive = false,
   staffHourlyRate = null,
   isLoadingRates = false,
+  overtimeShiftCosts = new Map(),
 }: ShiftStackProps) {
   // Sort by start time (ascending)
   const sortedShifts = [...shifts].sort((a, b) => {
@@ -62,6 +72,7 @@ export default function ShiftStack({
               budgetViewActive={budgetViewActive}
               staffHourlyRate={staffHourlyRate}
               isLoadingRates={isLoadingRates}
+              overtimeCost={overtimeShiftCosts.get(shift.id)}
             />
             {needsGhost && (
               <OvernightContinuationBlock

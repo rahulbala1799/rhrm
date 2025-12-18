@@ -80,7 +80,7 @@ export async function GET(request: Request) {
     .select('*', { count: 'exact', head: true })
     .eq('tenant_id', tenantId)
 
-  // Build main query - always select hourly_rate, but remove it from response if user doesn't have permission
+  // Build main query - always select hourly_rate and overtime fields, but remove from response if user doesn't have permission
   let query = supabase
     .from('staff')
     .select(`
@@ -95,6 +95,12 @@ export async function GET(request: Request) {
       employment_start_date,
       employment_end_date,
       hourly_rate,
+      contracted_weekly_hours,
+      overtime_enabled,
+      overtime_rule_type,
+      overtime_multiplier,
+      overtime_flat_extra,
+      pay_frequency,
       status,
       created_at,
       updated_at,
@@ -144,10 +150,19 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Failed to fetch staff' }, { status: 500 })
   }
 
-  // Remove hourly_rate from response if user doesn't have permission
+  // Remove sensitive fields from response if user doesn't have permission
   const sanitizedStaff = staff?.map((s: any) => {
-    if (!canViewBudget && 'hourly_rate' in s) {
-      const { hourly_rate, ...rest } = s
+    if (!canViewBudget) {
+      const {
+        hourly_rate,
+        contracted_weekly_hours,
+        overtime_enabled,
+        overtime_rule_type,
+        overtime_multiplier,
+        overtime_flat_extra,
+        pay_frequency,
+        ...rest
+      } = s
       return rest
     }
     return s

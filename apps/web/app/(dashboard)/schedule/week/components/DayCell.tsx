@@ -18,6 +18,15 @@ interface DayCellProps {
   budgetViewActive?: boolean
   staffHourlyRate?: number | null
   isLoadingRates?: boolean
+  overtimeShiftCosts?: Map<string, {
+    regularHours: number
+    overtimeHours: number
+    regularCost: number
+    overtimeCost: number
+    totalCost: number
+    hasOvertime: boolean
+    resolvedHourlyRate: number | null
+  }>
 }
 
 export default function DayCell({
@@ -35,6 +44,7 @@ export default function DayCell({
   budgetViewActive = false,
   staffHourlyRate = null,
   isLoadingRates = false,
+  overtimeShiftCosts = new Map(),
 }: DayCellProps) {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
@@ -74,6 +84,7 @@ export default function DayCell({
         budgetViewActive={budgetViewActive}
         staffHourlyRate={staffHourlyRate}
         isLoadingRates={isLoadingRates}
+        overtimeShiftCosts={overtimeShiftCosts}
       />
     </div>
   )

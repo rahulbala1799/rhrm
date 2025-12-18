@@ -8,6 +8,7 @@ import ColumnTotalsRow from './ColumnTotalsRow'
 import { groupShiftsByStaffAndDay } from '@/lib/schedule/shift-grouping'
 import { calculateColumnTotal, calculateGrandTotal } from '../utils/budget-calculations'
 import { getDayOfWeekInTimezone } from '@/lib/schedule/timezone-utils'
+import { useOvertimeCalculations } from '../hooks/useOvertimeCalculations'
 
 interface Staff {
   id: string
@@ -39,6 +40,15 @@ interface StaffRowSchedulerProps {
   budgetViewActive?: boolean
   staffHourlyRates?: Map<string, number | null>
   isLoadingRates?: boolean
+  staffOvertimeConfigs?: Map<string, {
+    contractedWeeklyHours: number | null
+    overtimeEnabled: boolean | null
+    overtimeRuleType: 'multiplier' | 'flat_extra' | null
+    overtimeMultiplier: number | null
+    overtimeFlatExtra: number | null
+    payFrequency: 'weekly' | 'fortnightly' | 'monthly' | null
+  }>
+  payPeriodConfig?: any
 }
 
 export default function StaffRowScheduler({
@@ -53,6 +63,8 @@ export default function StaffRowScheduler({
   budgetViewActive = false,
   staffHourlyRates = new Map(),
   isLoadingRates = false,
+  staffOvertimeConfigs = new Map(),
+  payPeriodConfig = null,
 }: StaffRowSchedulerProps) {
   // Group shifts by staff and day
   const groupedShifts = useMemo(() => {
@@ -82,12 +94,44 @@ export default function StaffRowScheduler({
     })
   }, [weekStart])
 
-  // Calculate column totals and grand total for budget view
+  // Calculate overtime costs if budget view is active
+  const { shiftCosts: overtimeShiftCosts } = useOvertimeCalculations({
+    shifts,
+    staffList,
+    staffOvertimeConfigs,
+    payPeriodConfig,
+    timezone,
+    weekStart,
+    budgetViewActive,
+  })
+
+  // Calculate column totals and grand total for budget view (with overtime if available)
   const { dayTotals, grandTotal } = useMemo(() => {
     if (!budgetViewActive) {
       return { dayTotals: [0, 0, 0, 0, 0, 0, 0], grandTotal: 0 }
     }
 
+    // Use overtime costs if available, otherwise fall back to basic calculations
+    if (overtimeShiftCosts.size > 0) {
+      const totals = Array.from({ length: 7 }, (_, dayIndex) => {
+        const dayShifts = shifts.filter(shift => {
+          const day = getDayOfWeekInTimezone(shift.start_time, timezone)
+          return day === dayIndex
+        })
+        return dayShifts.reduce((sum, shift) => {
+          const cost = overtimeShiftCosts.get(shift.id)
+          return sum + (cost?.totalCost || 0)
+        }, 0)
+      })
+
+      const total = Array.from(overtimeShiftCosts.values()).reduce(
+        (sum, cost) => sum + (cost.totalCost || 0),
+        0
+      )
+      return { dayTotals: totals, grandTotal: total }
+    }
+
+    // Fallback to basic calculations
     const totals = Array.from({ length: 7 }, (_, dayIndex) => {
       const dayShifts = shifts.filter(shift => {
         const day = getDayOfWeekInTimezone(shift.start_time, timezone)
@@ -98,7 +142,7 @@ export default function StaffRowScheduler({
 
     const total = calculateGrandTotal(shifts, staffHourlyRates)
     return { dayTotals: totals, grandTotal: total }
-  }, [budgetViewActive, shifts, staffHourlyRates, timezone])
+  }, [budgetViewActive, shifts, staffHourlyRates, timezone, overtimeShiftCosts])
 
   const handleDragStart = (shift: Shift, e: React.DragEvent) => {
     // Set drag data
@@ -168,6 +212,10 @@ export default function StaffRowScheduler({
         <div className="min-w-full">
           {sortedStaff.map((staff) => {
             const staffShiftsByDay = groupedShifts.get(staff.id) || new Map<number, Shift[]>()
+            const allStaffShifts = Array.from(staffShiftsByDay.values()).flat()
+            const overtimeCosts = budgetViewActive && overtimeShiftCosts.size > 0
+              ? allStaffShifts.map(shift => overtimeShiftCosts.get(shift.id)).filter(Boolean)
+              : []
             return (
               <StaffRow
                 key={staff.id}
@@ -183,6 +231,7 @@ export default function StaffRowScheduler({
                 budgetViewActive={budgetViewActive}
                 staffHourlyRate={staffHourlyRates.get(staff.id) ?? null}
                 isLoadingRates={isLoadingRates}
+                overtimeShiftCosts={budgetViewActive ? overtimeShiftCosts : new Map()}
               />
             )
           })}

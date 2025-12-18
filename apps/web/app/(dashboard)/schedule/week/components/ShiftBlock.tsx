@@ -17,6 +17,15 @@ interface ShiftBlockProps {
   budgetViewActive?: boolean
   staffHourlyRate?: number | null
   isLoadingRates?: boolean
+  overtimeCost?: {
+    regularHours: number
+    overtimeHours: number
+    regularCost: number
+    overtimeCost: number
+    totalCost: number
+    hasOvertime: boolean
+    resolvedHourlyRate: number | null
+  }
 }
 
 const statusColors = {
@@ -45,6 +54,7 @@ export default function ShiftBlock({
   budgetViewActive = false,
   staffHourlyRate = null,
   isLoadingRates = false,
+  overtimeCost,
 }: ShiftBlockProps) {
   const timeStr = `${formatTimeInTimezone(shift.start_time, timezone)} - ${formatTimeInTimezone(shift.end_time, timezone)}`
   const locationName = shift.location?.name || 'Unknown location'
@@ -127,6 +137,7 @@ export default function ShiftBlock({
               staffHourlyRate={staffHourlyRate}
               timezone={timezone}
               isLoading={isLoadingRates}
+              overtimeCost={overtimeCost}
             />
           )}
         </div>
