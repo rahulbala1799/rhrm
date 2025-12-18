@@ -22,10 +22,24 @@
 ### D0.3 Auto-Selection Rules
 - **Single role:** Auto-select role in shift creation (no dropdown shown)
 - **Multiple roles:** Show role selector dropdown (required field)
-- **No roles:** Show role selector dropdown (required field, admin must assign role)
+- **No roles:** Show role selector dropdown (optional field, but recommended)
 - **Single location:** Auto-select location in shift creation (no dropdown shown)
 - **Multiple locations:** Show location selector dropdown (required field)
 - **No locations:** Show location selector dropdown (required field)
+
+### D0.3.1 Why Roles Are Optional But Locations Are Required
+
+**Rationale:**
+- **Locations are required** because shifts must have a physical place (for payroll, compliance, scheduling)
+- **Roles are optional** because:
+  - Allows smooth onboarding (create staff → assign shifts → assign roles later)
+  - Some businesses may not use role-based organization initially
+  - Historical shifts may predate role system implementation
+  - Enables gradual migration without forcing immediate role assignment
+
+**Migration Path:**
+- Existing shifts without locations: MUST be backfilled with location data
+- Existing shifts without roles: CAN remain without roles (will use default colors)
 
 ### D0.4 Shift Block Color Display
 - **Color source:** Use role's `bg_color` and `text_color` from `job_roles` table
@@ -65,7 +79,7 @@ CREATE INDEX IF NOT EXISTS idx_job_roles_is_active ON job_roles(tenant_id, is_ac
 - `id`: Primary key
 - `tenant_id`: Tenant scope
 - `name`: Role name (e.g., "Chef", "Waiter", "Manager")
-- `description`: Optional description
+- `description`: Optional description (displayed in: settings table, role selector tooltip, role assignment modal)
 - `bg_color`: Background color hex code (default: light gray)
 - `text_color`: Text color hex code (default: dark gray)
 - `is_active`: Soft delete flag (inactive roles hidden from assignment but preserved for historical shifts)
@@ -233,6 +247,7 @@ USING (
 - `description`: Optional, max 500 characters
 - `bg_color`: Required, valid hex color (6 digits, optional `#`)
 - `text_color`: Required, valid hex color (6 digits, optional `#`)
+- `bg_color` and `text_color`: Must have minimum 4.5:1 contrast ratio (WCAG AA)
 
 **Errors:**
 - `400`: Validation error
@@ -248,12 +263,20 @@ USING (
 
 **Errors:**
 - `404`: Role not found
-- `400`: Validation error
+- `400`: Validation error (includes contrast ratio validation)
 - `409`: Role name already exists (if name changed)
 - `403`: Not authorized
 
 #### `DELETE /api/settings/job-roles/[id]`
 **Description:** Soft delete a job role (set `is_active = false`)
+
+**Query Parameters:**
+- `force`: boolean (optional) - If true, soft deletes role even if assigned to staff
+
+**Behavior:**
+- If role is NOT assigned to staff: Soft delete immediately
+- If role IS assigned to staff AND `force=false`: Return 409 error with count of affected staff
+- If role IS assigned to staff AND `force=true`: Soft delete role, keep staff assignments intact (for historical shifts)
 
 **Response:**
 ```json
@@ -263,10 +286,24 @@ USING (
 }
 ```
 
+**Error Response (409 - Role assigned to staff):**
+```json
+{
+  "error": "Role is assigned to staff",
+  "message": "This role is assigned to 3 staff members",
+  "staff_count": 3,
+  "staff": [
+    { "id": "uuid", "name": "John Doe" },
+    { "id": "uuid", "name": "Jane Smith" },
+    { "id": "uuid", "name": "Mike Johnson" }
+  ]
+}
+```
+
 **Errors:**
 - `404`: Role not found
 - `403`: Not authorized
-- `409`: Role is assigned to staff (must unassign first, or provide `force=true` to soft delete)
+- `409`: Role is assigned to X staff members (include count and staff names in response)
 
 ### 3.2 Staff Roles Endpoints
 
@@ -335,6 +372,12 @@ USING (
 
 #### `PUT /api/staff/[id]/roles`
 **Description:** Replace all roles for a staff member (bulk update)
+
+**Use Cases:**
+- Use `POST /api/staff/[id]/roles` when: Adding a single new role (most common)
+- Use `PUT /api/staff/[id]/roles` when: Replacing entire role set (less common, bulk operations)
+
+**Note:** Both endpoints coexist. `POST` is additive, `PUT` is replacement.
 
 **Request Body:**
 ```json
@@ -424,23 +467,42 @@ USING (
 │ [+ Create Role]                                          │
 │                                                           │
 │ ┌─────────────────────────────────────────────────────┐  │
-│ │ Role Name        │ Colors        │ Actions        │  │
+│ │ Role Name    │ Description    │ Colors    │ Actions│  │
 │ ├─────────────────────────────────────────────────────┤  │
-│ │ Chef             │ 🟥 #FF5733    │ [Edit] [Delete]│  │
-│ │                  │ ⚪ #FFFFFF    │                 │  │
+│ │ Chef         │ Kitchen staff  │ 🟥 #FF5733│ [Edit] │  │
+│ │              │                │ ⚪ #FFFFFF│ [Delete]│
 │ ├─────────────────────────────────────────────────────┤  │
-│ │ Waiter           │ 🟦 #3498DB    │ [Edit] [Delete]│  │
-│ │                  │ ⚪ #FFFFFF    │                 │  │
+│ │ Waiter       │ Front of house │ 🟦 #3498DB│ [Edit] │  │
+│ │              │                │ ⚪ #FFFFFF│ [Delete]│
 │ └─────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────┘
 ```
 
 **Features:**
 - **Create Role Button:** Opens modal to create new role
-- **Role List:** Table showing all active roles
+- **Role List:** Table showing all active roles with description
 - **Color Preview:** Visual color swatch + hex code
 - **Edit Button:** Opens edit modal
 - **Delete Button:** Soft deletes role (with confirmation if assigned to staff)
+
+**Delete Confirmation Modal:**
+If role is assigned to staff:
+```
+┌─────────────────────────────────────┐
+│ Confirm Delete Role            [×] │
+├─────────────────────────────────────┤
+│ This role is assigned to 3 staff:   │
+│ • John Doe                           │
+│ • Jane Smith                         │
+│ • Mike Johnson                       │
+│                                      │
+│ Deleting will hide this role from    │
+│ assignment, but existing shifts      │
+│ will keep their colors.              │
+│                                      │
+│ [Cancel]  [Delete Role]             │
+└─────────────────────────────────────┘
+```
 
 **Create/Edit Role Modal:**
 ```
@@ -460,6 +522,9 @@ USING (
 │ Text Color *                        │
 │ [Color Picker] #FFFFFF             │
 │                                     │
+│ Contrast Ratio: 4.8:1 ✓             │
+│ (WCAG AA requires 4.5:1 minimum)    │
+│                                     │
 │ [Cancel]  [Create Role]            │
 └─────────────────────────────────────┘
 ```
@@ -468,6 +533,13 @@ USING (
 - Use HTML5 `<input type="color">` for simplicity
 - Display hex code input field for manual entry
 - Show live preview of colors
+
+**Contrast Validation:**
+- Real-time contrast ratio calculation display
+- Visual warning indicator (⚠️) if contrast is below 4.5:1
+- Helper text: "Contrast ratio: X.XX:1 (WCAG AA requires 4.5:1 minimum)"
+- Color suggestion button if contrast fails (suggests darker/lighter text color)
+- Disable "Create/Update" button if contrast is insufficient
 
 ### 4.2 Staff Detail Page - Roles Section
 
@@ -504,6 +576,7 @@ USING (
 - Show all active roles (excluding already assigned)
 - Multi-select if needed, or single select with "Add Another" option
 - Display color preview for each role
+- Show role description on hover (tooltip)
 
 ### 4.3 Shift Creation Modal - Role Selection
 
@@ -544,6 +617,12 @@ USING (
 │ [Cancel]  [Create Shift]            │
 └─────────────────────────────────────┘
 ```
+
+**Role Selector Dropdown:**
+Each role option displays:
+- Role name (primary text)
+- Color swatch (visual indicator)
+- Description on hover (tooltip)
 
 ### 4.4 Scheduler - Color-Coded Shift Blocks
 
@@ -650,8 +729,8 @@ function getLocationSelectionMode(staffLocations: Location[]): 'hidden' | 'requi
 ### Phase 2: Settings UI
 1. Add "Job Roles" tab to Settings page
 2. Create `JobRolesList` component
-3. Create `CreateRoleModal` component
-4. Create `EditRoleModal` component
+3. Create `CreateRoleModal` component (with contrast validation)
+4. Create `EditRoleModal` component (with contrast validation)
 5. Implement role list display
 6. Implement create role flow
 7. Implement edit role flow
@@ -761,22 +840,26 @@ function getLocationSelectionMode(staffLocations: Location[]): 'hidden' | 'requi
 ## 9. Future Enhancements (V2)
 
 1. **Role Templates:** Pre-defined role templates with suggested colors
-2. **Color Contrast Validation:** Warn admin if colors don't meet WCAG AA
-3. **Role-Based Permissions:** Use roles for access control (beyond display)
-4. **Role Statistics:** Show shift count per role in settings
-5. **Bulk Role Assignment:** Assign role to multiple staff at once
-6. **Role History:** Track when roles were assigned/removed
-7. **Custom Role Icons:** Add icon/emoji to roles (beyond colors)
-8. **Role-Based Availability:** Set availability rules per role
+2. **Role-Based Permissions:** Use roles for access control (beyond display)
+3. **Role Statistics:** Show shift count per role in settings
+4. **Bulk Role Assignment:** Assign role to multiple staff at once
+5. **Role History:** Track when roles were assigned/removed
+6. **Custom Role Icons:** Add icon/emoji to roles (beyond colors)
+7. **Role-Based Availability:** Set availability rules per role
 
 ---
 
 ## 10. Known Limitations
 
-1. **Color Contrast:** No automatic validation (admin must ensure readability)
+1. **Color Contrast:** Automatic validation enforced (WCAG AA 4.5:1 minimum required)
 2. **Role Deletion:** Soft delete only (cannot hard delete if used in shifts)
 3. **Historical Shifts:** If role deleted, shifts show fallback colors (cannot update historical data)
-4. **Performance:** Many roles (100+) may slow down role selector dropdowns (consider pagination/search)
+4. **Performance:** 
+   - **Expected usage:** Most tenants will have 5-20 roles
+   - **Performance threshold:** UI remains responsive up to 50 roles
+   - **Above 50 roles:** Consider implementing search/filtering in role selectors
+   - **Recommendation:** If tenant needs 50+ roles, evaluate if role categorization is needed
+   - **Phase 4 decision:** Implement search if >20 roles; defer if fewer
 
 ---
 
@@ -828,8 +911,62 @@ CREATE INDEX IF NOT EXISTS idx_shifts_role_id ON shifts(role_id);
 ALTER TABLE job_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE staff_roles ENABLE ROW LEVEL SECURITY;
 
--- 5. RLS Policies (see Section 2 for full policies)
--- ... (add policies here)
+-- 5. RLS Policies for job_roles
+CREATE POLICY "Users can view active job roles in their tenant"
+ON job_roles FOR SELECT
+USING (
+    tenant_id IN (
+        SELECT tenant_id FROM memberships 
+        WHERE user_id = auth.uid() AND status = 'active'
+    )
+    AND is_active = true
+);
+
+CREATE POLICY "Admins and Managers can manage job roles"
+ON job_roles FOR ALL
+USING (
+    tenant_id IN (
+        SELECT tenant_id FROM memberships 
+        WHERE user_id = auth.uid() 
+        AND status = 'active'
+        AND role IN ('admin', 'manager')
+    )
+);
+
+-- 6. RLS Policies for staff_roles
+CREATE POLICY "Users can view staff roles in their tenant"
+ON staff_roles FOR SELECT
+USING (
+    tenant_id IN (
+        SELECT tenant_id FROM memberships 
+        WHERE user_id = auth.uid() AND status = 'active'
+    )
+);
+
+CREATE POLICY "Admins and Managers can manage staff roles"
+ON staff_roles FOR ALL
+USING (
+    tenant_id IN (
+        SELECT tenant_id FROM memberships 
+        WHERE user_id = auth.uid() 
+        AND status = 'active'
+        AND role IN ('admin', 'manager')
+    )
+);
+
+-- 7. Add updated_at trigger for job_roles
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_job_roles_updated_at
+BEFORE UPDATE ON job_roles
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
 ```
 
 ---
