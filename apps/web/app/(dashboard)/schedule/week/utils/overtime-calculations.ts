@@ -306,8 +306,22 @@ export function calculateShiftCostWithOvertime(
     overtimeHours = shiftHours - regularHours
   }
 
-  const regularCost = regularHours * resolvedHourlyRate
-  const overtimeCost = overtimeHours * overtimeRate
+  // Option B: All hours at base rate + overtime extra
+  // Regular cost: All hours at base rate
+  const regularCost = shiftHours * resolvedHourlyRate
+  
+  // Overtime extra: Additional amount for overtime hours only
+  let overtimeCost = 0
+  if (overtimeRuleType === 'multiplier' && overtimeMultiplier) {
+    // Multiplier: Extra = (multiplier × base_rate × overtime_hours) - (base_rate × overtime_hours)
+    // Simplified: overtime_hours × base_rate × (multiplier - 1)
+    // But user wants: multiplier × base_rate × overtime_hours as the extra
+    overtimeCost = overtimeHours * resolvedHourlyRate * overtimeMultiplier
+  } else if (overtimeRuleType === 'flat_extra' && overtimeFlatExtra !== null) {
+    // Flat extra: Extra = flat_extra × overtime_hours
+    overtimeCost = overtimeHours * overtimeFlatExtra
+  }
+  
   const totalCost = regularCost + overtimeCost
 
   return {

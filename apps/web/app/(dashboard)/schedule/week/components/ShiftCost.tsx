@@ -48,10 +48,10 @@ export default function ShiftCost({
     if (overtimeCost.hasOvertime) {
       return (
         <div className="mt-1">
-          <div className="text-xs font-medium text-gray-700">
+          <div className="bg-white px-1.5 py-0.5 rounded text-xs font-medium text-black inline-block">
             {format(overtimeCost.totalCost)} ⚡
           </div>
-          <div className="text-xs text-gray-500">
+          <div className="bg-white px-1.5 py-0.5 rounded text-xs text-gray-700 mt-0.5 inline-block">
             {format(overtimeCost.regularCost)} + {format(overtimeCost.overtimeCost)} OT
           </div>
         </div>
@@ -59,7 +59,7 @@ export default function ShiftCost({
     }
 
     return (
-      <div className="text-xs font-medium text-gray-700 mt-1">
+      <div className="bg-white px-1.5 py-0.5 rounded text-xs font-medium text-black mt-1 inline-block">
         {format(overtimeCost.totalCost)}
       </div>
     )
@@ -75,14 +75,14 @@ export default function ShiftCost({
 
   if (cost === null) {
     return (
-      <div className="text-xs text-gray-400 italic mt-1" title="Hourly rate not set for this staff member">
+      <div className="bg-white px-1.5 py-0.5 rounded text-xs text-gray-400 italic mt-1 inline-block" title="Hourly rate not set for this staff member">
         N/A
       </div>
     )
   }
 
   return (
-    <div className="text-xs font-medium text-gray-700 mt-1">
+    <div className="bg-white px-1.5 py-0.5 rounded text-xs font-medium text-black mt-1 inline-block">
       {format(cost)}
     </div>
   )
