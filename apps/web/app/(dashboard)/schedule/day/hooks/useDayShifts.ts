@@ -2,35 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
-
-export interface Shift {
-  id: string
-  staff_id: string
-  location_id: string
-  role_id?: string | null
-  start_time: string
-  end_time: string
-  break_duration_minutes: number
-  status: 'draft' | 'published' | 'confirmed' | 'cancelled'
-  notes: string | null
-  staff: {
-    id: string
-    first_name: string
-    last_name: string
-    preferred_name: string | null
-    department: string | null
-  } | null
-  location: {
-    id: string
-    name: string
-  } | null
-  role?: {
-    id: string
-    name: string
-    bg_color: string
-    text_color: string
-  } | null
-}
+import { Shift } from '@/lib/schedule/types'
 
 export interface DayShiftsResponse {
   date: string

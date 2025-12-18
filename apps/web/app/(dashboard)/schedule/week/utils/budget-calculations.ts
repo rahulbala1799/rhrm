@@ -1,4 +1,4 @@
-import { Shift } from '../hooks/useWeekShifts'
+import { Shift } from '@/lib/schedule/types'
 
 /**
  * Validate hourly rate value

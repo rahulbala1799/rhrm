@@ -2,14 +2,16 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { format, addDays, subDays, startOfDay } from 'date-fns'
-import { fromZonedTime } from 'date-fns-tz'
 import PageHeader from '@/components/ui/PageHeader'
-import { useDayShifts, Shift } from './hooks/useDayShifts'
+import { Shift } from '@/lib/schedule/types'
+import { ShiftUpdateError } from '@/lib/schedule/types'
+import { useOptimisticDayShifts } from './hooks/useOptimisticDayShifts'
 import { useTenantSettings } from '../week/hooks/useTenantSettings'
 import DailyCanvas from './components/DailyCanvas'
 import ShiftModal, { ShiftFormData } from '../week/components/ShiftModal'
 import Toast from '../week/components/Toast'
 import { applyTimeToDate } from '@/lib/schedule/timezone-utils'
+import { toUtcIsoInTenantTz } from '@/lib/schedule/shift-updates'
 
 export default function DayViewPage() {
   const [currentDate, setCurrentDate] = useState(() => startOfDay(new Date()))
@@ -40,8 +42,11 @@ export default function DayViewPage() {
     error,
     conflicts,
     totals,
+    updateShift,
+    createShift,
+    deleteShift,
     refetch,
-  } = useDayShifts(currentDate)
+  } = useOptimisticDayShifts(currentDate)
 
   // Fetch staff and locations
   useEffect(() => {
@@ -109,167 +114,128 @@ export default function DayViewPage() {
         return
       }
 
-      // Convert to UTC timestamps
-      const startTimeUTC = fromZonedTime(startTime, timezone).toISOString()
-      const endTimeUTC = fromZonedTime(endTime, timezone).toISOString()
+      // Convert to UTC timestamps using shared helper
+      const startTimeUTC = toUtcIsoInTenantTz(startTime, timezone)
+      const endTimeUTC = toUtcIsoInTenantTz(endTime, timezone)
 
-      const response = await fetch('/api/schedule/shifts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          staff_id: staffId,
-          location_id: defaultLocationId,
-          start_time: startTimeUTC,
-          end_time: endTimeUTC,
-          status: 'draft',
-        }),
+      // Use hook method
+      await createShift({
+        staff_id: staffId,
+        location_id: defaultLocationId,
+        start_time: startTimeUTC,
+        end_time: endTimeUTC,
+        status: 'draft',
       })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to create shift')
-      }
 
       setToast({ message: 'Shift created successfully', type: 'success' })
-      refetch()
-    } catch (err: any) {
-      setToast({
-        message: err.message || 'Failed to create shift',
-        type: 'error',
-      })
+    } catch (err) {
+      const error = err as ShiftUpdateError
+      if (error.code === 'OVERLAP') {
+        setToast({ message: error.message, type: 'error' })
+      } else {
+        setToast({ message: error.message, type: 'error' })
+      }
     }
-  }, [staffList, locationList, timezone, refetch])
+  }, [staffList, locationList, timezone, createShift])
 
   const handleShiftMove = useCallback(async (shiftId: string, newStaffId: string, newStartTime: Date, newEndTime: Date) => {
     try {
-      const shift = shifts.find(s => s.id === shiftId)
-      if (!shift) {
-        setToast({ message: 'Shift not found', type: 'error' })
-        return
-      }
+      // Convert to UTC timestamps using shared helper
+      const startTimeUTC = toUtcIsoInTenantTz(newStartTime, timezone)
+      const endTimeUTC = toUtcIsoInTenantTz(newEndTime, timezone)
 
-      // Convert to UTC timestamps
-      const startTimeUTC = fromZonedTime(newStartTime, timezone).toISOString()
-      const endTimeUTC = fromZonedTime(newEndTime, timezone).toISOString()
-
-      const response = await fetch(`/api/schedule/shifts/${shiftId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          staff_id: newStaffId,
-          start_time: startTimeUTC,
-          end_time: endTimeUTC,
-        }),
+      // Use hook method
+      await updateShift(shiftId, {
+        staff_id: newStaffId,
+        start_time: startTimeUTC,
+        end_time: endTimeUTC,
       })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        const errorMessage = errorData.error || 'Failed to move shift'
-        if (errorMessage.includes('overlap')) {
-          setToast({ message: 'Cannot move: overlaps another shift', type: 'error' })
-        } else {
-          setToast({ message: errorMessage, type: 'error' })
-        }
-        return
-      }
 
       setToast({ message: 'Shift moved successfully', type: 'success' })
-      refetch()
-    } catch (err: any) {
-      setToast({
-        message: err.message || 'Failed to move shift',
-        type: 'error',
-      })
+    } catch (err) {
+      const error = err as ShiftUpdateError
+      if (error.code === 'OVERLAP') {
+        setToast({ message: error.message, type: 'error' })
+      } else if (error.code === 'FORBIDDEN') {
+        setToast({ message: error.message, type: 'error' })
+      } else {
+        setToast({ message: error.message, type: 'error' })
+      }
     }
-  }, [shifts, timezone, refetch])
+  }, [timezone, updateShift])
 
   const handleShiftResize = useCallback(async (shiftId: string, newStartTime: Date, newEndTime: Date) => {
     try {
-      // Convert to UTC timestamps
-      const startTimeUTC = fromZonedTime(newStartTime, timezone).toISOString()
-      const endTimeUTC = fromZonedTime(newEndTime, timezone).toISOString()
+      // Convert to UTC timestamps using shared helper
+      const startTimeUTC = toUtcIsoInTenantTz(newStartTime, timezone)
+      const endTimeUTC = toUtcIsoInTenantTz(newEndTime, timezone)
 
-      const response = await fetch(`/api/schedule/shifts/${shiftId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          start_time: startTimeUTC,
-          end_time: endTimeUTC,
-        }),
+      // Use hook method
+      await updateShift(shiftId, {
+        start_time: startTimeUTC,
+        end_time: endTimeUTC,
       })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        const errorMessage = errorData.error || 'Failed to resize shift'
-        if (errorMessage.includes('overlap')) {
-          setToast({ message: 'Cannot resize: overlaps another shift', type: 'error' })
-        } else {
-          setToast({ message: errorMessage, type: 'error' })
-        }
-        return
-      }
 
       setToast({ message: 'Shift resized successfully', type: 'success' })
-      refetch()
-    } catch (err: any) {
-      setToast({
-        message: err.message || 'Failed to resize shift',
-        type: 'error',
-      })
+    } catch (err) {
+      const error = err as ShiftUpdateError
+      if (error.code === 'OVERLAP') {
+        setToast({ message: error.message, type: 'error' })
+      } else {
+        setToast({ message: error.message, type: 'error' })
+      }
     }
-  }, [timezone, refetch])
+  }, [timezone, updateShift])
 
   const handleSaveShift = async (formData: ShiftFormData) => {
     try {
-      const url = editingShift ? `/api/schedule/shifts/${editingShift.id}` : '/api/schedule/shifts'
-      const method = editingShift ? 'PATCH' : 'POST'
+      // Convert form times to UTC using shared helper
+      const startTimeUTC = toUtcIsoInTenantTz(new Date(formData.start_time), timezone)
+      const endTimeUTC = toUtcIsoInTenantTz(new Date(formData.end_time), timezone)
 
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to save shift')
+      if (editingShift) {
+        // Use hook method for update
+        await updateShift(editingShift.id, {
+          staff_id: formData.staff_id,
+          location_id: formData.location_id,
+          role_id: formData.role_id || null,
+          start_time: startTimeUTC,
+          end_time: endTimeUTC,
+          break_duration_minutes: formData.break_duration_minutes || 0,
+          status: formData.status || 'draft',
+          notes: formData.notes || null,
+        })
+        setToast({ message: 'Shift updated successfully', type: 'success' })
+      } else {
+        // Use hook method for create
+        await createShift({
+          staff_id: formData.staff_id,
+          location_id: formData.location_id,
+          role_id: formData.role_id || null,
+          start_time: startTimeUTC,
+          end_time: endTimeUTC,
+          break_duration_minutes: formData.break_duration_minutes || 0,
+          status: formData.status || 'draft',
+          notes: formData.notes || null,
+        })
+        setToast({ message: 'Shift created successfully', type: 'success' })
       }
-
-      setToast({
-        message: editingShift ? 'Shift updated successfully' : 'Shift created successfully',
-        type: 'success',
-      })
       setModalOpen(false)
       setEditingShift(null)
-      refetch()
-    } catch (err: any) {
-      setToast({
-        message: err.message || 'Failed to save shift',
-        type: 'error',
-      })
+    } catch (err) {
+      const error = err as ShiftUpdateError
+      setToast({ message: error.message, type: 'error' })
     }
   }
 
   const handleDeleteShift = async (shiftId: string) => {
     try {
-      const response = await fetch(`/api/schedule/shifts/${shiftId}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to delete shift')
-      }
-
-      setToast({
-        message: 'Shift deleted successfully',
-        type: 'success',
-      })
-      refetch()
-    } catch (err: any) {
-      setToast({
-        message: err.message || 'Failed to delete shift',
-        type: 'error',
-      })
+      // Use hook method
+      await deleteShift(shiftId)
+      setToast({ message: 'Shift deleted successfully', type: 'success' })
+    } catch (err) {
+      const error = err as ShiftUpdateError
+      setToast({ message: error.message, type: 'error' })
     }
   }
 
@@ -283,81 +249,46 @@ export default function DayViewPage() {
         return
       }
 
-      const response = await fetch('/api/schedule/shifts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          staff_id: shift.staff_id,
-          location_id: defaultLocationId,
-          role_id: shift.role_id,
-          start_time: shift.start_time,
-          end_time: shift.end_time,
-          break_duration_minutes: shift.break_duration_minutes,
-          status: 'draft',
-          notes: shift.notes,
-        }),
+      // Use hook method
+      await createShift({
+        staff_id: shift.staff_id,
+        location_id: defaultLocationId,
+        role_id: shift.role_id,
+        start_time: shift.start_time,
+        end_time: shift.end_time,
+        break_duration_minutes: shift.break_duration_minutes,
+        status: 'draft',
+        notes: shift.notes ? `COPY of ${shift.notes}` : 'COPY of shift',
       })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to duplicate shift')
-      }
 
       setToast({ message: 'Shift duplicated successfully', type: 'success' })
-      refetch()
-    } catch (err: any) {
-      setToast({
-        message: err.message || 'Failed to duplicate shift',
-        type: 'error',
-      })
+    } catch (err) {
+      const error = err as ShiftUpdateError
+      setToast({ message: error.message, type: 'error' })
     }
-  }, [staffList, locationList, refetch])
+  }, [staffList, locationList, createShift])
 
   const handleShiftPublish = useCallback(async (shiftId: string) => {
     try {
-      const response = await fetch(`/api/schedule/shifts/${shiftId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'published' }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to publish shift')
-      }
-
+      // Use hook method
+      await updateShift(shiftId, { status: 'published' })
       setToast({ message: 'Shift published successfully', type: 'success' })
-      refetch()
-    } catch (err: any) {
-      setToast({
-        message: err.message || 'Failed to publish shift',
-        type: 'error',
-      })
+    } catch (err) {
+      const error = err as ShiftUpdateError
+      setToast({ message: error.message, type: 'error' })
     }
-  }, [refetch])
+  }, [updateShift])
 
   const handleShiftUnpublish = useCallback(async (shiftId: string) => {
     try {
-      const response = await fetch(`/api/schedule/shifts/${shiftId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'draft' }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to unpublish shift')
-      }
-
+      // Use hook method
+      await updateShift(shiftId, { status: 'draft' })
       setToast({ message: 'Shift unpublished successfully', type: 'success' })
-      refetch()
-    } catch (err: any) {
-      setToast({
-        message: err.message || 'Failed to unpublish shift',
-        type: 'error',
-      })
+    } catch (err) {
+      const error = err as ShiftUpdateError
+      setToast({ message: error.message, type: 'error' })
     }
-  }, [refetch])
+  }, [updateShift])
 
   const handleBulkPublish = useCallback(async () => {
     try {
@@ -367,13 +298,9 @@ export default function DayViewPage() {
         return
       }
 
-      // Publish all drafts
+      // Publish all drafts using hook method
       const promises = draftShifts.map(shift =>
-        fetch(`/api/schedule/shifts/${shift.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'published' }),
-        })
+        updateShift(shift.id, { status: 'published' })
       )
 
       const results = await Promise.allSettled(promises)
@@ -390,15 +317,11 @@ export default function DayViewPage() {
           type: 'success',
         })
       }
-
-      refetch()
-    } catch (err: any) {
-      setToast({
-        message: err.message || 'Failed to publish shifts',
-        type: 'error',
-      })
+    } catch (err) {
+      const error = err as ShiftUpdateError
+      setToast({ message: error.message, type: 'error' })
     }
-  }, [shifts, refetch])
+  }, [shifts, updateShift])
 
   const handleDateChange = (newDate: Date) => {
     setCurrentDate(startOfDay(newDate))

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react'
 import { format, toZonedTime, fromZonedTime } from 'date-fns-tz'
-import { Shift } from '../hooks/useDayShifts'
+import { Shift } from '@/lib/schedule/types'
 import ShiftBlock from './ShiftBlock'
 import ShiftContextMenu from './ShiftContextMenu'
 import { applyTimeToDate } from '@/lib/schedule/timezone-utils'

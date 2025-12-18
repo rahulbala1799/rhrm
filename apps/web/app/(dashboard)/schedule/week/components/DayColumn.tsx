@@ -1,7 +1,7 @@
 'use client'
 
 import { format, parseISO } from 'date-fns'
-import { Shift } from '../hooks/useWeekShifts'
+import { Shift } from '@/lib/schedule/types'
 import ShiftBlock from './ShiftBlock'
 
 interface DayColumnProps {

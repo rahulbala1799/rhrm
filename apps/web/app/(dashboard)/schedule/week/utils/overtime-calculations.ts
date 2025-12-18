@@ -1,4 +1,4 @@
-import { Shift } from '../hooks/useWeekShifts'
+import { Shift } from '@/lib/schedule/types'
 import { calculateShiftHours } from './budget-calculations'
 import { startOfWeek, addWeeks, startOfMonth } from 'date-fns'
 import { getCurrentPayPeriod, PayPeriodConfig } from '@/lib/pay-period/utils'

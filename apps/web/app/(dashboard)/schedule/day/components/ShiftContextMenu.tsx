@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Shift } from '../hooks/useDayShifts'
+import { Shift } from '@/lib/schedule/types'
 
 interface ShiftContextMenuProps {
   x: number

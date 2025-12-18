@@ -1,7 +1,10 @@
 'use client'
 
 import { useState, useCallback, useRef } from 'react'
-import { Shift, useWeekShifts } from './useWeekShifts'
+import { Shift } from '@/lib/schedule/types'
+import { ShiftUpdateError } from '@/lib/schedule/types'
+import { useWeekShifts } from './useWeekShifts'
+import { updateShiftViaAPI, createShiftViaAPI, deleteShiftViaAPI } from '@/lib/schedule/shift-updates'
 
 function generateTempId(): string {
   return `temp_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`
@@ -102,27 +105,17 @@ export function useOptimisticShifts(
     pendingMutationsRef.current.set(tempId, mutation)
 
     try {
-      const response = await fetch('/api/schedule/shifts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          staff_id: shiftData.staff_id,
-          location_id: shiftData.location_id,
-          role_id: shiftData.role_id || null,
-          start_time: shiftData.start_time,
-          end_time: shiftData.end_time,
-          break_duration_minutes: shiftData.break_duration_minutes || 0,
-          status: shiftData.status || 'draft',
-          notes: shiftData.notes || null,
-        }),
+      // Use shared utility
+      const realShift = await createShiftViaAPI({
+        staff_id: shiftData.staff_id,
+        location_id: shiftData.location_id,
+        role_id: shiftData.role_id || null,
+        start_time: shiftData.start_time,
+        end_time: shiftData.end_time,
+        break_duration_minutes: shiftData.break_duration_minutes || 0,
+        status: shiftData.status || 'draft',
+        notes: shiftData.notes || null,
       })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to create shift')
-      }
-
-      const realShift: Shift = await response.json()
 
       // Reconcile: replace temp shift with real shift
       setOptimisticShifts((prev) => {
@@ -152,11 +145,12 @@ export function useOptimisticShifts(
       refetch()
       
       return realShift
-    } catch (err: any) {
+    } catch (err) {
       // Revert optimistic update
       setOptimisticShifts((prev) => prev.filter((s) => s._tempId !== tempId))
       pendingMutationsRef.current.delete(tempId)
       setSyncing(false)
+      // Re-throw ShiftUpdateError
       throw err
     } finally {
       setSyncing(false)
@@ -191,24 +185,8 @@ export function useOptimisticShifts(
     pendingMutationsRef.current.set(shiftId, mutation)
 
     try {
-      const response = await fetch(`/api/schedule/shifts/${shiftId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        if (response.status === 403) {
-          throw new Error('Not allowed: you don\'t have permission.')
-        }
-        if (response.status === 409) {
-          throw new Error(errorData.error || 'Shift not saved: overlaps another shift.')
-        }
-        throw new Error(errorData.error || 'Failed to update shift')
-      }
-
-      const realShift: Shift = await response.json()
+      // Use shared utility
+      const realShift = await updateShiftViaAPI(shiftId, updates)
 
       // Replace optimistic with real
       setOptimisticShifts((prev) => {
@@ -222,11 +200,12 @@ export function useOptimisticShifts(
       refetch()
       
       return realShift
-    } catch (err: any) {
+    } catch (err) {
       // Revert optimistic update
       setOptimisticShifts((prev) => prev.filter((s) => s.id !== shiftId))
       pendingMutationsRef.current.delete(shiftId)
       setSyncing(false)
+      // Re-throw ShiftUpdateError
       throw err
     } finally {
       setSyncing(false)
@@ -251,29 +230,21 @@ export function useOptimisticShifts(
     pendingMutationsRef.current.set(shiftId, mutation)
 
     try {
-      const response = await fetch(`/api/schedule/shifts/${shiftId}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        if (response.status === 403) {
-          throw new Error('Not allowed: you don\'t have permission.')
-        }
-        throw new Error(errorData.error || 'Failed to delete shift')
-      }
+      // Use shared utility
+      await deleteShiftViaAPI(shiftId)
 
       pendingMutationsRef.current.delete(shiftId)
       
       // Refetch in background
       refetch()
-    } catch (err: any) {
+    } catch (err) {
       // Revert: add back original shift
       if (originalShift) {
         setOptimisticShifts((prev) => [...prev, originalShift as OptimisticShift])
       }
       pendingMutationsRef.current.delete(shiftId)
       setSyncing(false)
+      // Re-throw ShiftUpdateError
       throw err
     } finally {
       setSyncing(false)

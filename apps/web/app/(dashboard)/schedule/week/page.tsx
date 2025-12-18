@@ -7,7 +7,10 @@ import WeekPlannerHeader from './components/WeekPlannerHeader'
 import StaffRowScheduler from './components/StaffRowScheduler'
 import ShiftModal, { ShiftFormData } from './components/ShiftModal'
 import Toast from './components/Toast'
-import { useWeekShifts, Shift, WeekShiftsResponse } from './hooks/useWeekShifts'
+import { Shift } from '@/lib/schedule/types'
+import { ShiftUpdateError } from '@/lib/schedule/types'
+import { toUtcIsoInTenantTz } from '@/lib/schedule/shift-updates'
+import { useWeekShifts, WeekShiftsResponse } from './hooks/useWeekShifts'
 import { useTenantSettings } from './hooks/useTenantSettings'
 import { useOptimisticShifts } from './hooks/useOptimisticShifts'
 import { useBudgetViewToggle } from './hooks/useBudgetViewToggle'
@@ -221,28 +224,32 @@ export default function WeekPlannerPage() {
         newEndTime = applyTimeToDate(endDate, endHours, endMinutes, timezone)
       }
 
+      // Convert to UTC using shared helper
+      const startTimeUTC = toUtcIsoInTenantTz(newStartTime, timezone)
+      const endTimeUTC = toUtcIsoInTenantTz(newEndTime, timezone)
+
       await updateShift(shiftId, {
         staff_id: targetStaffId,
-        start_time: newStartTime,
-        end_time: newEndTime,
+        start_time: startTimeUTC,
+        end_time: endTimeUTC,
       })
-    } catch (err: any) {
-      const errorMessage = err.message || 'Failed to move shift'
-      if (errorMessage.includes('overlap')) {
-        setToast({ message: 'Shift not saved: overlaps another shift.', type: 'error' })
-      } else if (errorMessage.includes('permission')) {
-        setToast({ message: 'Not allowed: you don\'t have permission.', type: 'error' })
+    } catch (err) {
+      const error = err as ShiftUpdateError
+      if (error.code === 'OVERLAP') {
+        setToast({ message: error.message, type: 'error' })
+      } else if (error.code === 'FORBIDDEN') {
+        setToast({ message: error.message, type: 'error' })
       } else {
-        setToast({ message: errorMessage, type: 'error' })
+        setToast({ message: error.message, type: 'error' })
       }
     }
   }
 
   const handleSaveShift = async (formData: ShiftFormData) => {
     try {
-      // Convert datetime-local to ISO string (already in UTC from form)
-      const startTime = new Date(formData.start_time).toISOString()
-      const endTime = new Date(formData.end_time).toISOString()
+      // Convert datetime-local to UTC using shared helper
+      const startTime = toUtcIsoInTenantTz(new Date(formData.start_time), timezone)
+      const endTime = toUtcIsoInTenantTz(new Date(formData.end_time), timezone)
 
       if (editingShift) {
         await updateShift(editingShift.id, {
@@ -271,14 +278,14 @@ export default function WeekPlannerPage() {
       }
       setModalOpen(false)
       setEditingShift(null)
-    } catch (err: any) {
-      const errorMessage = err.message || 'Failed to save shift'
-      if (errorMessage.includes('overlap')) {
-        setToast({ message: 'Shift not saved: overlaps another shift.', type: 'error' })
-      } else if (errorMessage.includes('permission')) {
-        setToast({ message: 'Not allowed: you don\'t have permission.', type: 'error' })
+    } catch (err) {
+      const error = err as ShiftUpdateError
+      if (error.code === 'OVERLAP') {
+        setToast({ message: error.message, type: 'error' })
+      } else if (error.code === 'FORBIDDEN') {
+        setToast({ message: error.message, type: 'error' })
       } else {
-        setToast({ message: errorMessage, type: 'error' })
+        setToast({ message: error.message, type: 'error' })
       }
       throw err
     }

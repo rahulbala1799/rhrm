@@ -1,6 +1,6 @@
 'use client'
 
-import { Shift } from '../hooks/useWeekShifts'
+import { Shift } from '@/lib/schedule/types'
 import ShiftStack from './ShiftStack'
 
 interface DayCellProps {

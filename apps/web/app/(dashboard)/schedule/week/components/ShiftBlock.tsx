@@ -1,6 +1,6 @@
 'use client'
 
-import { Shift } from '../hooks/useWeekShifts'
+import { Shift } from '@/lib/schedule/types'
 import { formatTimeInTimezone } from '@/lib/schedule/timezone-utils'
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import ShiftCost from './ShiftCost'

@@ -1,6 +1,6 @@
 'use client'
 
-import { Shift } from '../hooks/useDayShifts'
+import { Shift } from '@/lib/schedule/types'
 import { formatTimeInTimezone } from '@/lib/schedule/timezone-utils'
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 
