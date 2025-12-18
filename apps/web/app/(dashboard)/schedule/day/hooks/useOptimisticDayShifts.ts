@@ -130,18 +130,26 @@ export function useOptimisticDayShifts(
       // Use shared utility
       const realShift = await updateShiftViaAPI(shiftId, updates)
 
-      // Replace optimistic with real
+      // CRITICAL: Replace optimistic with real, but keep it visible
+      // Mark as optimistic so it stays visible during refetch
       setOptimisticShifts(prev => {
         const filtered = prev.filter(s => s.id !== shiftId)
-        return [...filtered, realShift]
+        return [...filtered, { ...realShift, _isOptimistic: true } as OptimisticShift]
       })
 
       pendingMutationsRef.current.delete(shiftId)
       
-      // Invalidate cache and refetch in background (silent)
+      // CRITICAL: Refetch in background but keep optimistic shift visible
+      // Only remove when refetch confirms real shift is in cache
       if (tenantId) {
         const key = getDayCacheKey(tenantId, date, cacheFilters)
-        mutate(key, undefined, { revalidate: true })
+        mutate(key, undefined, { revalidate: true }).then((newData) => {
+          // After refetch completes, check if real shift is in the new data
+          if (newData?.shifts?.some((s: Shift) => s.id === shiftId)) {
+            // Real shift is now in cache, safe to remove optimistic
+            setOptimisticShifts(prev => prev.filter(s => s.id !== shiftId))
+          }
+        })
       }
       
       return realShift
@@ -199,18 +207,27 @@ export function useOptimisticDayShifts(
         notes: shiftData.notes || null,
       })
 
-      // Replace optimistic with real
+      // CRITICAL: Replace optimistic with real, but keep it visible
       setOptimisticShifts(prev => {
-        const filtered = prev.filter(s => s.id !== tempId)
-        return [...filtered, realShift]
+        const filtered = prev.filter(s => s.id !== tempId && s._tempId !== tempId)
+        return [...filtered, { ...realShift, _isOptimistic: true } as OptimisticShift]
       })
 
       pendingMutationsRef.current.delete(tempId)
       
-      // Invalidate cache and refetch in background (silent)
+      // CRITICAL: Refetch in background but keep optimistic shift visible
       if (tenantId) {
         const key = getDayCacheKey(tenantId, date, cacheFilters)
-        mutate(key, undefined, { revalidate: true })
+        mutate(key, undefined, { revalidate: true }).then((newData) => {
+          // After refetch completes, check if real shift is in the new data
+          if (newData?.shifts?.some((s: Shift) => s.id === realShift.id)) {
+            // Real shift is now in cache, safe to remove optimistic
+            setOptimisticShifts(prev => {
+              const filtered = prev.filter(s => s._tempId !== tempId && s.id !== realShift.id)
+              return filtered
+            })
+          }
+        })
       }
       
       return realShift

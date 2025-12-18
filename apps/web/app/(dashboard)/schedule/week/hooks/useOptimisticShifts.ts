@@ -90,37 +90,42 @@ export function useOptimisticShifts(
   }, [weekStart, tenantId, cacheFilters])
 
   // Merge real shifts with optimistic shifts
+  // CRITICAL: Optimistic shifts MUST stay visible during mutations and refetches
+  // The shift should NEVER disappear - it stays in its new position until server confirms or rejects
   const mergedShifts = useCallback((): Shift[] => {
     const realShiftsMap = new Map<string, Shift>()
     const optimisticShiftsMap = new Map<string, OptimisticShift>()
 
-    // Add real shifts
+    // Add real shifts (from server/cache)
     for (const shift of shifts) {
       realShiftsMap.set(shift.id, shift)
     }
 
-    // Add optimistic shifts (overwrite real shifts if mutation is pending)
+    // Add optimistic shifts - these are the source of truth during mutations
     for (const optimisticShift of optimisticShifts) {
       const key = optimisticShift._tempId || optimisticShift.id
-      // Don't overwrite if mutation is still pending
-      if (!pendingMutationsRef.current.has(key)) {
-        optimisticShiftsMap.set(key, optimisticShift)
-      }
+      optimisticShiftsMap.set(key, optimisticShift)
     }
 
-    // Merge: optimistic takes precedence for pending mutations
+    // Merge strategy: Optimistic shifts ALWAYS take precedence
+    // Real shifts are only shown if there's no optimistic version
     const merged = new Map<string, Shift>()
     
-    // Add all real shifts first
+    // First, add all real shifts (but optimistic will overwrite them)
     Array.from(realShiftsMap.entries()).forEach(([id, shift]) => {
-      if (!pendingMutationsRef.current.has(id)) {
+      // Check if there's an optimistic version - if so, skip real (optimistic will be added)
+      const hasOptimistic = optimisticShiftsMap.has(id) || optimisticShiftsMap.has(shift.id)
+      if (!hasOptimistic) {
         merged.set(id, shift)
       }
     })
 
-    // Add optimistic shifts (overwrite real if exists)
+    // CRITICAL: Add optimistic shifts - these overwrite real shifts
+    // This ensures the shift stays visible in its new position during mutation
     Array.from(optimisticShiftsMap.entries()).forEach(([key, optimisticShift]) => {
       const shift = optimisticShift as Shift
+      // Always use optimistic shift - it's the source of truth during mutation
+      // Even if real shift exists, optimistic takes precedence (shows new position)
       merged.set(shift.id, shift)
     })
 
@@ -170,34 +175,31 @@ export function useOptimisticShifts(
         notes: shiftData.notes || null,
       })
 
-      // Reconcile: replace temp shift with real shift
+      // CRITICAL: Replace temp shift with real shift, keep it visible
       setOptimisticShifts((prev) => {
         const filtered = prev.filter((s) => s._tempId !== tempId)
-        // Match by staff_id, location_id, start_time, end_time (within ±1 second)
-        const match = prev.find(
-          (s) =>
-            s._tempId === tempId &&
-            s.staff_id === realShift.staff_id &&
-            s.location_id === realShift.location_id &&
-            Math.abs(new Date(s.start_time).getTime() - new Date(realShift.start_time).getTime()) < 1000 &&
-            Math.abs(new Date(s.end_time).getTime() - new Date(realShift.end_time).getTime()) < 1000
-        )
-        
-        if (match) {
-          // Replace with real shift (same position, no flicker)
-          return filtered.map((s) => (s._tempId === tempId ? realShift : s))
-        } else {
-          // Reconciliation failed: remove temp, add real (accept small flicker)
-          return [...filtered, realShift]
-        }
+        // Add real shift - it should be in the same position as temp shift
+        // Keep it marked as optimistic so it stays visible during refetch
+        return [...filtered, { ...realShift, _isOptimistic: true } as OptimisticShift]
       })
 
       pendingMutationsRef.current.delete(tempId)
       
-      // Invalidate cache and refetch in background (silent)
+      // CRITICAL: Refetch in background but keep optimistic shift visible
+      // Only remove when refetch confirms real shift is in cache
       if (tenantId) {
         const key = getWeekCacheKey(tenantId, weekStart, cacheFilters)
-        mutate(key, undefined, { revalidate: true })
+        // Silent refetch - doesn't clear optimistic state
+        mutate(key, undefined, { revalidate: true }).then((newData) => {
+          // After refetch completes, check if real shift is in the new data
+          if (newData?.shifts?.some((s: Shift) => s.id === realShift.id)) {
+            // Real shift is now in cache, safe to remove optimistic
+            setOptimisticShifts((prev) => {
+              const filtered = prev.filter((s) => s._tempId !== tempId && s.id !== realShift.id)
+              return filtered
+            })
+          }
+        })
       }
       
       return realShift
@@ -244,24 +246,40 @@ export function useOptimisticShifts(
       // Use shared utility
       const realShift = await updateShiftViaAPI(shiftId, updates)
 
-      // Replace optimistic with real
+      // CRITICAL: Replace optimistic with real, but keep it visible
+      // The real shift should match the optimistic position, so no visual change
       setOptimisticShifts((prev) => {
-        const filtered = prev.filter((s) => s.id !== shiftId)
-        return [...filtered, realShift]
+        const filtered = prev.filter((s) => s.id !== shiftId && s._tempId !== shiftId)
+        // Add real shift - it should be in the same position as optimistic
+        // Keep it marked as optimistic so it stays visible during refetch
+        return [...filtered, { ...realShift, _isOptimistic: true } as OptimisticShift]
       })
 
       pendingMutationsRef.current.delete(shiftId)
       
-      // Invalidate cache and refetch in background (silent)
+      // CRITICAL: Refetch in background but DON'T clear optimistic state immediately
+      // Keep the optimistic shift visible until refetch confirms the real shift is in cache
       if (tenantId) {
         const key = getWeekCacheKey(tenantId, weekStart, cacheFilters)
-        mutate(key, undefined, { revalidate: true })
+        // Silent refetch - doesn't clear optimistic state
+        mutate(key, undefined, { revalidate: true }).then((newData) => {
+          // After refetch completes, check if real shift is in the new data
+          // Only remove optimistic if real shift is confirmed in cache
+          if (newData?.shifts?.some((s: Shift) => s.id === shiftId)) {
+            // Real shift is now in cache, safe to remove optimistic
+            setOptimisticShifts((prev) => {
+              const filtered = prev.filter((s) => s.id !== shiftId && s._tempId !== shiftId)
+              return filtered
+            })
+          }
+          // If real shift not in refetch yet, keep optimistic visible (will be cleaned up on next refetch)
+        })
       }
       
       return realShift
     } catch (err) {
-      // Revert optimistic update
-      setOptimisticShifts((prev) => prev.filter((s) => s.id !== shiftId))
+      // Revert optimistic update - snap back to original position
+      setOptimisticShifts((prev) => prev.filter((s) => s.id !== shiftId && s._tempId !== shiftId))
       pendingMutationsRef.current.delete(shiftId)
       setSyncing(false)
       // Re-throw ShiftUpdateError

@@ -60,11 +60,13 @@ export function useWeekShiftsSWR(
       // Dedupe requests
       dedupingInterval: 2000,
       // SWR automatically shows cached data while revalidating (stale-while-revalidate)
+      // Previous data is kept during revalidation by default
     }
   )
 
   // CRITICAL: Never return empty array - always return previous data if available
   // SWR's data persists across key changes until new data loads (prevents white flash)
+  // During refetch, keep showing previous data until new data arrives
   const shifts = data?.shifts || []
   const weekEnd = data?.weekEnd || ''
   const conflicts = data?.conflicts || []
