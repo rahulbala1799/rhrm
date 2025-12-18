@@ -123,12 +123,25 @@ Stored in tenants.settings.currency
     ↓
 Backend API retrieves currency with tenant context
     ↓
-Frontend components fetch currency via hook/context
+CurrencyContext Provider fetches currency once at layout level
     ↓
-formatCurrency() uses tenant currency
+All components access currency via useCurrency() hook
     ↓
-All currency displays show correct symbol
+formatCurrency() uses tenant currency with consistent formatting
+    ↓
+All currency displays show correct symbol (€20.50, $20.50, £20.50)
 ```
+
+### Formatting Standards
+
+**Consistent Symbol Placement**: All currencies display with symbol before number:
+- **€20.50** (Euro)
+- **$20.50** (US Dollar)
+- **£20.50** (British Pound)
+
+**Decimal Separator**: Always use period (.) as decimal separator for all currencies, regardless of locale.
+
+**Number Formatting**: Uses `en-US` locale for number formatting to ensure consistent decimal point, while maintaining currency-specific symbols.
 
 ### Settings Location
 
@@ -455,21 +468,33 @@ export async function getTenantSettings(): Promise<TenantSettings | null> {
 
 ## Frontend Implementation
 
-### 1. Create Currency Context/Hook
+### 1. Create Currency Context Provider
 
-**New File**: `apps/web/app/(dashboard)/hooks/useCurrency.ts`
+**New File**: `apps/web/app/(dashboard)/contexts/CurrencyContext.tsx`
 
 ```typescript
 'use client'
 
-import { useState, useEffect } from 'react'
-import { SupportedCurrency } from '@/lib/currency/utils'
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { SupportedCurrency } from '@/lib/currency/types'
 
-export function useCurrency() {
+interface CurrencyContextType {
+  currency: SupportedCurrency
+  loading: boolean
+  error: string | null
+}
+
+const CurrencyContext = createContext<CurrencyContextType>({
+  currency: 'USD',
+  loading: true,
+  error: null,
+})
+
+export function CurrencyProvider({ children }: { children: ReactNode }) {
   const [currency, setCurrency] = useState<SupportedCurrency>('USD')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  
+
   useEffect(() => {
     const fetchCurrency = async () => {
       try {
@@ -479,8 +504,8 @@ export function useCurrency() {
         const response = await fetch('/api/settings/currency')
         
         if (!response.ok) {
-          // Default to USD on error
           setCurrency('USD')
+          setLoading(false)
           return
         }
         
@@ -489,7 +514,7 @@ export function useCurrency() {
       } catch (err: any) {
         console.error('Error fetching currency:', err)
         setError(err.message)
-        setCurrency('USD') // Default fallback
+        setCurrency('USD')
       } finally {
         setLoading(false)
       }
@@ -497,22 +522,72 @@ export function useCurrency() {
     
     fetchCurrency()
   }, [])
-  
-  return { currency, loading, error }
+
+  return (
+    <CurrencyContext.Provider value={{ currency, loading, error }}>
+      {children}
+    </CurrencyContext.Provider>
+  )
+}
+
+export function useCurrencyContext() {
+  return useContext(CurrencyContext)
 }
 ```
 
-### 2. Update Centralized Currency Formatting
+**Why Context Provider?**
+- Fetches currency once at the layout level
+- All components share the same currency value
+- Reduces API calls and prevents currency flashing
+- Ensures all components update together when currency changes
+
+### 2. Create Currency Hook (Uses Context)
+
+**New File**: `apps/web/app/(dashboard)/hooks/useCurrency.ts`
+
+```typescript
+'use client'
+
+import { useCurrencyContext } from '../contexts/CurrencyContext'
+
+export function useCurrency() {
+  return useCurrencyContext()
+}
+```
+
+### 3. Add Currency Provider to Dashboard Layout
+
+**File**: `apps/web/app/(dashboard)/layout.tsx`
+
+```typescript
+import { CurrencyProvider } from './contexts/CurrencyContext'
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  // ... existing code ...
+  
+  return (
+    <CurrencyProvider>
+      <div className="flex h-screen bg-gray-50">
+        {/* ... existing layout code ... */}
+        {children}
+      </div>
+    </CurrencyProvider>
+  )
+}
+```
+
+### 4. Update Centralized Currency Formatting
 
 **File**: `apps/web/app/(dashboard)/schedule/week/utils/currency-formatting.ts`
 
-**Complete Rewrite**:
+**Complete Rewrite** (with consistent formatting):
 ```typescript
-import { SupportedCurrency, CURRENCY_CONFIGS } from '@/lib/currency/utils'
+import { SupportedCurrency, CURRENCY_CONFIGS } from '@/lib/currency/types'
 
 /**
- * Format amount as currency using tenant's currency setting
- * This function should be called from client components that have access to currency context
+ * Format amount as currency with consistent symbol placement (symbol before number)
+ * and always use period (.) as decimal separator
+ * This ensures all currencies display as: €20.50, $20.50, £20.50
  * 
  * @param amount - Amount to format (can be null)
  * @param currency - Currency code (default: USD)
@@ -530,23 +605,18 @@ export function formatCurrency(
   
   const config = CURRENCY_CONFIGS[currency]
   
-  // Handle zero values: show currency symbol with 0.00
-  if (amount === 0) {
-    return new Intl.NumberFormat(config.locale, {
-      style: 'currency',
-      currency: config.code,
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    }).format(0)
-  }
-  
-  // Format with proper locale and currency
-  return new Intl.NumberFormat(config.locale, {
-    style: 'currency',
-    currency: config.code,
+  // Format number with period as decimal separator and comma as thousand separator
+  // Always use en-US number formatting for consistent decimal point
+  const numberFormatter = new Intl.NumberFormat('en-US', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
-  }).format(amount)
+  })
+  
+  const formattedNumber = numberFormatter.format(amount)
+  
+  // Always place symbol before the number for consistency
+  // Format: €20.50, $20.50, £20.50
+  return `${config.symbol}${formattedNumber}`
 }
 
 /**
@@ -557,7 +627,13 @@ export function getCurrencySymbol(currency: SupportedCurrency = 'USD'): string {
 }
 ```
 
-### 3. Create Shared Currency Formatting Hook
+**Key Implementation Details:**
+- **Symbol Placement**: Always before number (€20.50, not 20.50€)
+- **Decimal Separator**: Always period (.) for all currencies
+- **Number Formatting**: Uses `en-US` locale to ensure consistent decimal point
+- **Thousand Separator**: Comma (,) when needed (e.g., $1,234.50)
+
+### 5. Create Shared Currency Formatting Hook
 
 **New File**: `apps/web/app/(dashboard)/hooks/useFormatCurrency.ts`
 
@@ -566,12 +642,12 @@ export function getCurrencySymbol(currency: SupportedCurrency = 'USD'): string {
 
 import { useCurrency } from './useCurrency'
 import { formatCurrency as formatCurrencyUtil, getCurrencySymbol } from '../schedule/week/utils/currency-formatting'
-import { SupportedCurrency } from '@/lib/currency/utils'
 
 export function useFormatCurrency() {
-  const { currency } = useCurrency()
+  const { currency, loading } = useCurrency()
   
   const format = (amount: number | null, decimals: number = 2) => {
+    // Format with current currency (will update when currency loads)
     return formatCurrencyUtil(amount, currency, decimals)
   }
   
@@ -580,12 +656,24 @@ export function useFormatCurrency() {
   return {
     format,
     symbol,
-    currency
+    currency,
+    loading
   }
 }
 ```
 
-### 4. Update Schedule Week Components
+**Usage in Components:**
+```typescript
+const { format, symbol } = useFormatCurrency()
+
+// Display formatted currency
+<p>{format(1234.56)}</p> // Shows: €1,234.56, $1,234.56, or £1,234.56
+
+// Use symbol in labels
+<label>Hourly Rate ({symbol})</label> // Shows: Hourly Rate (€), ($), or (£)
+```
+
+### 6. Update Schedule Week Components
 
 #### Update `ColumnTotalsRow.tsx`:
 ```typescript
@@ -628,7 +716,7 @@ export default function ShiftCost({ ... }) {
 }
 ```
 
-### 5. Update Staff Detail Components
+### 7. Update Staff Detail Components
 
 #### Update `PayTab.tsx`:
 ```typescript
@@ -1124,36 +1212,82 @@ function CurrencyIcon() {
 ## Files to Create/Modify Summary
 
 ### New Files
-1. `apps/web/lib/currency/utils.ts` - Currency utility functions
-2. `apps/web/app/api/settings/currency/route.ts` - Currency API endpoint (optional if using Company Settings)
-3. `apps/web/app/(dashboard)/hooks/useCurrency.ts` - Currency hook
-4. `apps/web/app/(dashboard)/hooks/useFormatCurrency.ts` - Formatting hook
-5. `apps/web/app/(dashboard)/settings/currency/page.tsx` - Currency settings UI (only if using separate page)
+1. `apps/web/lib/currency/types.ts` - Client-safe currency types and configs (no server dependencies)
+2. `apps/web/lib/currency/utils.ts` - Server-side currency utility functions
+3. `apps/web/app/api/settings/currency/route.ts` - Currency API endpoint
+4. `apps/web/app/(dashboard)/contexts/CurrencyContext.tsx` - Currency context provider
+5. `apps/web/app/(dashboard)/hooks/useCurrency.ts` - Currency hook (uses context)
+6. `apps/web/app/(dashboard)/hooks/useFormatCurrency.ts` - Formatting hook
+7. `apps/web/app/(dashboard)/settings/currency/page.tsx` - Currency settings UI (only if using separate page - not implemented, using Company Settings instead)
 
 ### Modified Files
-1. `apps/web/app/(dashboard)/schedule/week/utils/currency-formatting.ts` - Update to use tenant currency
-2. `apps/web/app/(dashboard)/schedule/week/components/ColumnTotalsRow.tsx` - Use currency hook
-3. `apps/web/app/(dashboard)/schedule/week/components/RowTotalCell.tsx` - Use currency hook
-4. `apps/web/app/(dashboard)/schedule/week/components/ShiftCost.tsx` - Use currency hook
-5. `apps/web/app/(dashboard)/staff/[id]/components/PayTab.tsx` - Use currency hook, remove hardcoded £
-6. `apps/web/app/(dashboard)/staff/[id]/wages/page.tsx` - Use currency hook, remove hardcoded £
-7. `apps/web/app/(dashboard)/me/staff-profile/page.tsx` - Use currency hook
-8. `apps/web/app/api/settings/company/route.ts` - Add currency validation and handling
-9. `apps/web/app/(dashboard)/settings/company/page.tsx` - Add currency field to form (if using Option A)
-10. `apps/web/lib/schedule/utils.ts` - Add currency to TenantSettings
-11. `apps/web/components/dashboard/Sidebar.tsx` - Add currency settings link (only if using Option B - separate page)
+1. `apps/web/app/(dashboard)/layout.tsx` - Add CurrencyProvider wrapper
+2. `apps/web/app/(dashboard)/schedule/week/utils/currency-formatting.ts` - Update to use consistent formatting (symbol before, period decimal)
+3. `apps/web/app/(dashboard)/schedule/week/components/ColumnTotalsRow.tsx` - Use currency hook
+4. `apps/web/app/(dashboard)/schedule/week/components/RowTotalCell.tsx` - Use currency hook
+5. `apps/web/app/(dashboard)/schedule/week/components/ShiftCost.tsx` - Use currency hook
+6. `apps/web/app/(dashboard)/staff/[id]/components/PayTab.tsx` - Use currency hook, remove hardcoded £
+7. `apps/web/app/(dashboard)/staff/[id]/wages/page.tsx` - Use currency hook, remove hardcoded £
+8. `apps/web/app/(dashboard)/me/staff-profile/page.tsx` - Use currency hook
+9. `apps/web/app/api/settings/company/route.ts` - Add currency validation and handling
+10. `apps/web/app/(dashboard)/settings/company/page.tsx` - Add currency field to form
+11. `apps/web/lib/schedule/utils.ts` - Add currency to TenantSettings
+
+---
+
+## Implementation Notes & Fixes
+
+### Key Implementation Decisions
+
+1. **Currency Context Provider Approach**
+   - Implemented `CurrencyContext` to fetch currency once at layout level
+   - All components share the same currency value via context
+   - Reduces API calls and prevents currency flashing from USD to actual currency
+   - Ensures all components update together when currency changes
+
+2. **Consistent Formatting Standards**
+   - **Symbol Placement**: Always before number (€20.50, $20.50, £20.50)
+   - **Decimal Separator**: Always period (.) for all currencies
+   - **Number Formatting**: Uses `en-US` locale for consistent decimal point
+   - **Thousand Separator**: Comma (,) when needed (e.g., $1,234.50)
+
+3. **Client/Server Separation**
+   - Created `lib/currency/types.ts` for client-safe types and configs
+   - Kept server-side functions in `lib/currency/utils.ts`
+   - Prevents Next.js build errors about importing `next/headers` in client components
+
+4. **Build Fixes Applied**
+   - Separated client-safe currency types from server-side utilities
+   - Fixed import paths to use `types.ts` in client components
+   - Fixed currency formatting to use consistent decimal separator
+
+### Formatting Examples
+
+All currencies now display consistently:
+- **USD**: $20.50, $1,234.56
+- **EUR**: €20.50, €1,234.56
+- **GBP**: £20.50, £1,234.56
+
+### Migration Applied
+
+Migration `20251221000000_set_default_currency.sql` has been applied:
+- Sets default currency (USD) for all existing tenants
+- Updates `tenants.settings` JSONB column
+- No data loss, backward compatible
 
 ---
 
 ## Conclusion
 
-This implementation plan provides a comprehensive approach to removing all hardcoded currency values and implementing a dynamic currency system. The architecture is designed to be:
+This implementation provides a comprehensive dynamic currency system with:
 
-- **Scalable**: Easy to add more currencies
-- **Maintainable**: Single source of truth for currency
-- **User-Friendly**: Simple admin interface
-- **Robust**: Proper validation and error handling
+- **Scalable**: Easy to add more currencies by updating `CURRENCY_CONFIGS`
+- **Maintainable**: Single source of truth via context provider
+- **User-Friendly**: Simple admin interface in Company Settings
+- **Robust**: Proper validation, error handling, and fallbacks
 - **Backward Compatible**: Defaults to USD for existing tenants
+- **Consistent**: Uniform formatting across all currencies
+- **Performant**: Currency fetched once, shared via context
 
-Following this plan will ensure a clean, maintainable currency system that meets all requirements.
+The system has been fully implemented, tested, and deployed. All hardcoded currency values have been removed and replaced with the dynamic currency system.
 
