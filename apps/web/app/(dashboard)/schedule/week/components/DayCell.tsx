@@ -43,7 +43,7 @@ export default function DayCell({
 
   return (
     <div
-      className="border-r border-b border-gray-200 p-1 min-h-[120px] bg-white hover:bg-gray-50 transition-colors"
+      className="flex-1 border-r border-b border-gray-200 last:border-r-0 p-1 min-h-[120px] bg-white hover:bg-gray-50 transition-colors"
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onClick={() => onCellClick?.(staffId, dayIndex, dayDate)}
