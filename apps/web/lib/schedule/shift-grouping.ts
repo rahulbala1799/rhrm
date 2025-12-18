@@ -60,13 +60,13 @@ export function groupShiftsByStaffAndDay(
   }
   
   // Sort shifts within each day by start time (ascending)
-  for (const staffMap of grouped.values()) {
-    for (const shifts of staffMap.values()) {
+  Array.from(grouped.values()).forEach((staffMap) => {
+    Array.from(staffMap.values()).forEach((shifts) => {
       shifts.sort((a, b) => {
         return new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
       })
-    }
-  }
+    })
+  })
   
   return grouped
 }
