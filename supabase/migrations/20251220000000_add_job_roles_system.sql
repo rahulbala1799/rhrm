@@ -12,9 +12,12 @@ CREATE TABLE IF NOT EXISTS job_roles (
     text_color TEXT NOT NULL DEFAULT '#1F2937',
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(tenant_id, LOWER(name))
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Create unique index for case-insensitive name per tenant
+CREATE UNIQUE INDEX IF NOT EXISTS idx_job_roles_tenant_name_unique 
+ON job_roles(tenant_id, LOWER(name));
 
 CREATE INDEX IF NOT EXISTS idx_job_roles_tenant_id ON job_roles(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_job_roles_is_active ON job_roles(tenant_id, is_active) WHERE is_active = true;
