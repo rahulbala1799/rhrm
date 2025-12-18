@@ -30,7 +30,8 @@ interface StaffRowSchedulerProps {
   staffList: Staff[]
   timezone: string
   conflicts?: Array<{ shift_id: string; type: string; message: string }>
-  onShiftClick?: (shift: Shift) => void
+  onShiftClick?: (shift: Shift, e?: React.MouseEvent) => void
+  onContextMenu?: (shift: Shift, e: React.MouseEvent) => void
   onCellClick?: (staffId: string, dayIndex: number, dayDate: Date) => void
   onShiftDrop?: (
     shiftId: string,
@@ -38,6 +39,7 @@ interface StaffRowSchedulerProps {
     targetDayIndex: number,
     targetDate: Date
   ) => void
+  selectedShiftIds?: string[]
   budgetViewActive?: boolean
   staffHourlyRates?: Map<string, number | null>
   isLoadingRates?: boolean
@@ -59,8 +61,10 @@ export default function StaffRowScheduler({
   timezone,
   conflicts = [],
   onShiftClick,
+  onContextMenu,
   onCellClick,
   onShiftDrop,
+  selectedShiftIds = [],
   budgetViewActive = false,
   staffHourlyRates = new Map(),
   isLoadingRates = false,
@@ -259,9 +263,11 @@ export default function StaffRowScheduler({
                     shiftsByDay={staffShiftsByDay}
                     conflicts={conflicts}
                     onShiftClick={onShiftClick}
+                    onContextMenu={onContextMenu}
                     onCellClick={onCellClick}
                     onDragStart={handleDragStart}
                     onDrop={handleDrop}
+                    selectedShiftIds={selectedShiftIds}
                     budgetViewActive={budgetViewActive}
                     staffHourlyRate={staffHourlyRates.get(staff.id) ?? null}
                     isLoadingRates={isLoadingRates}

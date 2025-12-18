@@ -14,6 +14,8 @@ interface ShiftBlockProps {
   onClick?: () => void
   onDragStart?: (e: React.DragEvent) => void
   onDragEnd?: (e: React.DragEvent) => void
+  onContextMenu?: (e: React.MouseEvent) => void
+  isSelected?: boolean
   budgetViewActive?: boolean
   staffHourlyRate?: number | null
   isLoadingRates?: boolean
@@ -51,6 +53,8 @@ export default function ShiftBlock({
   onClick,
   onDragStart,
   onDragEnd,
+  onContextMenu,
+  isSelected = false,
   budgetViewActive = false,
   staffHourlyRate = null,
   isLoadingRates = false,
@@ -97,10 +101,11 @@ export default function ShiftBlock({
     <button
       className={`
         w-full rounded-lg border-2 p-2 text-left
-        hover:shadow-md transition-shadow
+        hover:shadow-md transition-all
         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
         ${!useRoleColors ? statusColors[shift.status] : ''}
         ${shift.status === 'cancelled' ? 'cursor-not-allowed opacity-60 line-through' : 'cursor-pointer'}
+        ${isSelected ? 'ring-2 ring-blue-500 ring-offset-1 shadow-lg scale-[1.02]' : ''}
       `}
       style={useRoleColors ? {
         backgroundColor: bgColor,
@@ -108,6 +113,7 @@ export default function ShiftBlock({
         borderColor: borderColor,
       } : undefined}
       onClick={onClick}
+      onContextMenu={onContextMenu}
       draggable={shift.status !== 'cancelled'}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}

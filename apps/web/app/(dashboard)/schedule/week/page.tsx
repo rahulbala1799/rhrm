@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { startOfWeek, addWeeks, subWeeks, addDays, format } from 'date-fns'
 import PageHeader from '@/components/ui/PageHeader'
 import WeekPlannerHeader from './components/WeekPlannerHeader'
@@ -22,6 +22,7 @@ import { useOfflineDetection } from '../hooks/useOfflineDetection'
 import { useWindowFocusRefetch } from '../hooks/useWindowFocusRefetch'
 import { useUndoRedo } from '../day/hooks/useUndoRedo'
 import { normalizeTimeForCommit } from '@/lib/schedule/shift-updates'
+import ShiftContextMenu from '../day/components/ShiftContextMenu'
 
 
 export default function WeekPlannerPage() {
@@ -53,6 +54,12 @@ export default function WeekPlannerPage() {
   const [payPeriodConfig, setPayPeriodConfig] = useState<any>(null)
   const [isLoadingRates, setIsLoadingRates] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [selectedShiftIds, setSelectedShiftIds] = useState<string[]>([])
+  const [contextMenu, setContextMenu] = useState<{
+    x: number
+    y: number
+    shift: Shift
+  } | null>(null)
 
   const { settings } = useTenantSettings()
   const timezone = settings?.timezone || 'UTC'
@@ -196,10 +203,62 @@ export default function WeekPlannerPage() {
     setModalOpen(true)
   }
 
-  const handleShiftClick = (shift: Shift) => {
-    setEditingShift(shift)
-    setModalOpen(true)
+  const handleShiftClick = (shift: Shift, e?: React.MouseEvent) => {
+    // If Shift/Cmd key is held, toggle selection instead of opening modal
+    if (e && (e.shiftKey || e.metaKey || e.ctrlKey)) {
+      e.preventDefault()
+      e.stopPropagation()
+      setSelectedShiftIds((prev) => {
+        if (prev.includes(shift.id)) {
+          return prev.filter((id) => id !== shift.id)
+        } else {
+          return [...prev, shift.id]
+        }
+      })
+    } else {
+      setEditingShift(shift)
+      setModalOpen(true)
+    }
   }
+
+  const handleShiftContextMenu = (shift: Shift, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      shift,
+    })
+  }
+
+  // Escape clears selection, Delete removes selected shifts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle if we're in an input/textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return
+      }
+
+      if (e.key === 'Escape' && selectedShiftIds.length > 0) {
+        e.preventDefault()
+        setSelectedShiftIds([])
+      } else if (e.key === 'Delete' && selectedShiftIds.length > 0) {
+        e.preventDefault()
+        if (confirm(`Delete ${selectedShiftIds.length} shift${selectedShiftIds.length > 1 ? 's' : ''}?`)) {
+          selectedShiftIds.forEach((shiftId) => {
+            deleteShift(shiftId).catch((err) => {
+              const error = err as ShiftUpdateError
+              setToast({ message: error.message, type: 'error' })
+            })
+          })
+          setSelectedShiftIds([])
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedShiftIds, deleteShift])
 
   const handleShiftDrop = async (
     shiftId: string,
@@ -337,6 +396,88 @@ export default function WeekPlannerPage() {
     setCurrentWeek(startOfWeek(new Date(), { weekStartsOn: 1 }))
   }
 
+  const handleDeleteShift = async (shiftId: string) => {
+    const originalShift = shifts.find((s) => s.id === shiftId)
+    if (!originalShift) return
+
+    // Confirm deletion
+    if (!confirm('Are you sure you want to delete this shift?')) {
+      return
+    }
+
+    try {
+      await deleteShift(shiftId)
+
+      // Add undo action
+      addUndoAction({
+        type: 'delete',
+        shiftId,
+        previousState: originalShift,
+        newState: null,
+        execute: async () => {
+          await deleteShift(shiftId)
+        },
+        reverse: async () => {
+          await createShift({
+            staff_id: originalShift.staff_id,
+            location_id: originalShift.location_id,
+            role_id: originalShift.role_id,
+            start_time: originalShift.start_time,
+            end_time: originalShift.end_time,
+            break_duration_minutes: originalShift.break_duration_minutes,
+            status: originalShift.status,
+            notes: originalShift.notes,
+          })
+        },
+      })
+
+      setToast({ message: 'Shift deleted successfully', type: 'success' })
+    } catch (err) {
+      const error = err as ShiftUpdateError
+      setToast({ message: error.message, type: 'error' })
+    }
+  }
+
+  const handleShiftDuplicate = async (shift: Shift) => {
+    try {
+      await createShift({
+        staff_id: shift.staff_id,
+        location_id: shift.location_id,
+        role_id: shift.role_id,
+        start_time: shift.start_time,
+        end_time: shift.end_time,
+        break_duration_minutes: shift.break_duration_minutes,
+        status: 'draft',
+        notes: shift.notes ? `COPY of ${shift.notes}` : 'COPY of shift',
+      })
+
+      setToast({ message: 'Shift duplicated successfully', type: 'success' })
+    } catch (err) {
+      const error = err as ShiftUpdateError
+      setToast({ message: error.message, type: 'error' })
+    }
+  }
+
+  const handleShiftPublish = async (shiftId: string) => {
+    try {
+      await updateShift(shiftId, { status: 'published' })
+      setToast({ message: 'Shift published successfully', type: 'success' })
+    } catch (err) {
+      const error = err as ShiftUpdateError
+      setToast({ message: error.message, type: 'error' })
+    }
+  }
+
+  const handleShiftUnpublish = async (shiftId: string) => {
+    try {
+      await updateShift(shiftId, { status: 'draft' })
+      setToast({ message: 'Shift unpublished successfully', type: 'success' })
+    } catch (err) {
+      const error = err as ShiftUpdateError
+      setToast({ message: error.message, type: 'error' })
+    }
+  }
+
   if (error) {
     return (
       <div>
@@ -406,8 +547,10 @@ export default function WeekPlannerPage() {
             timezone={timezone}
             conflicts={conflicts}
             onShiftClick={handleShiftClick}
+            onContextMenu={handleShiftContextMenu}
             onCellClick={handleCellClick}
             onShiftDrop={handleShiftDrop}
+            selectedShiftIds={selectedShiftIds}
             budgetViewActive={budgetViewActive && canViewBudget}
             staffHourlyRates={staffHourlyRates}
             isLoadingRates={isLoadingRates}
@@ -439,6 +582,38 @@ export default function WeekPlannerPage() {
         defaultDate={defaultDate}
         defaultStaffId={defaultStaffId}
       />
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <ShiftContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          shift={contextMenu.shift}
+          onClose={() => setContextMenu(null)}
+          onEdit={() => {
+            setEditingShift(contextMenu.shift)
+            setModalOpen(true)
+            setContextMenu(null)
+          }}
+          onDelete={() => {
+            handleDeleteShift(contextMenu.shift.id)
+            setContextMenu(null)
+          }}
+          onDuplicate={() => {
+            handleShiftDuplicate(contextMenu.shift)
+            setContextMenu(null)
+          }}
+          onPublish={() => {
+            handleShiftPublish(contextMenu.shift.id)
+            setContextMenu(null)
+          }}
+          onUnpublish={() => {
+            handleShiftUnpublish(contextMenu.shift.id)
+            setContextMenu(null)
+          }}
+          canPublish={true}
+        />
+      )}
     </div>
   )
 }

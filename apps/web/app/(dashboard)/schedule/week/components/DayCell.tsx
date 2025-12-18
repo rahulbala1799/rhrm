@@ -10,11 +10,13 @@ interface DayCellProps {
   shifts: Shift[]
   timezone: string
   conflicts?: Array<{ shift_id: string; type: string; message: string }>
-  onShiftClick?: (shift: Shift) => void
+  onShiftClick?: (shift: Shift, e?: React.MouseEvent) => void
+  onContextMenu?: (shift: Shift, e: React.MouseEvent) => void
   onCellClick?: (staffId: string, dayIndex: number, dayDate: Date) => void
   onDragStart?: (shift: Shift, e: React.DragEvent) => void
   onDragEnd?: (e: React.DragEvent) => void
   onDrop?: (e: React.DragEvent, targetStaffId: string, targetDayIndex: number, targetDate: Date) => void
+  selectedShiftIds?: string[]
   budgetViewActive?: boolean
   staffHourlyRate?: number | null
   isLoadingRates?: boolean
@@ -37,10 +39,12 @@ export default function DayCell({
   timezone,
   conflicts = [],
   onShiftClick,
+  onContextMenu,
   onCellClick,
   onDragStart,
   onDragEnd,
   onDrop,
+  selectedShiftIds = [],
   budgetViewActive = false,
   staffHourlyRate = null,
   isLoadingRates = false,
@@ -79,8 +83,10 @@ export default function DayCell({
         timezone={timezone}
         conflicts={conflicts}
         onShiftClick={onShiftClick}
+        onContextMenu={onContextMenu}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
+        selectedShiftIds={selectedShiftIds}
         budgetViewActive={budgetViewActive}
         staffHourlyRate={staffHourlyRate}
         isLoadingRates={isLoadingRates}

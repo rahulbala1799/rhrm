@@ -15,6 +15,8 @@ interface ShiftStackProps {
   onShiftClick?: (shift: Shift) => void
   onDragStart?: (shift: Shift, e: React.DragEvent) => void
   onDragEnd?: (e: React.DragEvent) => void
+  onContextMenu?: (shift: Shift, e: React.MouseEvent) => void
+  selectedShiftIds?: string[]
   budgetViewActive?: boolean
   staffHourlyRate?: number | null
   isLoadingRates?: boolean
@@ -37,6 +39,8 @@ export default function ShiftStack({
   onShiftClick,
   onDragStart,
   onDragEnd,
+  onContextMenu,
+  selectedShiftIds = [],
   budgetViewActive = false,
   staffHourlyRate = null,
   isLoadingRates = false,
@@ -69,6 +73,8 @@ export default function ShiftStack({
               onClick={() => onShiftClick?.(shift)}
               onDragStart={(e) => onDragStart?.(shift, e)}
               onDragEnd={onDragEnd}
+              onContextMenu={(e) => onContextMenu?.(shift, e)}
+              isSelected={selectedShiftIds.includes(shift.id)}
               budgetViewActive={budgetViewActive}
               staffHourlyRate={staffHourlyRate}
               isLoadingRates={isLoadingRates}
