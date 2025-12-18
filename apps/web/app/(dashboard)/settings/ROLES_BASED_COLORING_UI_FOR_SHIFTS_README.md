@@ -538,8 +538,22 @@ If role is assigned to staff:
 - Real-time contrast ratio calculation display
 - Visual warning indicator (⚠️) if contrast is below 4.5:1
 - Helper text: "Contrast ratio: X.XX:1 (WCAG AA requires 4.5:1 minimum)"
-- Color suggestion button if contrast fails (suggests darker/lighter text color)
+- Color suggestion button if contrast fails
 - Disable "Create/Update" button if contrast is insufficient
+
+**Color Suggestion Button Behavior:**
+- If contrast fails, show "Suggest Colors" button
+- Clicking suggests text color that meets 4.5:1 ratio:
+  - **For light backgrounds (bg_color lightness > 50%):** Suggest darker text colors
+    - Primary suggestion: `#1F2937` (dark gray)
+    - Alternative: `#111827` (darker gray)
+    - Fallback: `#000000` (black)
+  - **For dark backgrounds (bg_color lightness ≤ 50%):** Suggest lighter text colors
+    - Primary suggestion: `#FFFFFF` (white)
+    - Alternative: `#F9FAFB` (off-white)
+    - Fallback: `#E5E7EB` (light gray)
+- User can accept suggestion (auto-fills text_color) or manually adjust
+- Recalculate contrast after suggestion is applied
 
 ### 4.2 Staff Detail Page - Roles Section
 
@@ -699,6 +713,13 @@ function getLocationSelectionMode(staffLocations: Location[]): 'hidden' | 'requi
 2. **Validation:** Ensure sufficient contrast (WCAG AA minimum)
 3. **Fallback:** If role deleted or colors invalid, use system defaults
 4. **Consistency:** Same role always shows same colors across all shifts
+
+**Contrast Calculation:**
+- Use WCAG 2.0 relative luminance formula: https://www.w3.org/TR/WCAG20/#relativeluminancedef
+- Contrast ratio = (L1 + 0.05) / (L2 + 0.05) where L1 is lighter color, L2 is darker color
+- Minimum ratio: 4.5:1 for WCAG AA compliance (normal text)
+- Validation: Frontend (real-time feedback) + Backend (enforcement on save)
+- Implementation: Use existing contrast calculation libraries (e.g., `color-contrast` npm package or similar)
 
 ### 5.4 Data Migration
 
