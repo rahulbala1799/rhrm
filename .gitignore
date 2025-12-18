@@ -56,3 +56,5 @@ apps/web/.env.vercel
 # Documentation files that may contain sensitive info
 apps/**/BUDGET_VIEW_TOGGLE_README.md
 apps/**/*BUDGET*README*.md
+apps/**/OVERTIME_CALC_IN_BUDGET_VIEW_README.md
+apps/**/*OVERTIME*README*.md
