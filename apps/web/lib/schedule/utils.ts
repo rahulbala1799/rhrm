@@ -1,9 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { getTenantContext } from '@/lib/auth/get-tenant-context'
+import { SupportedCurrency } from '@/lib/currency/utils'
 
 export interface TenantSettings {
   timezone: string
   staff_can_accept_decline_shifts: boolean
+  currency?: SupportedCurrency
 }
 
 /**
@@ -23,17 +25,31 @@ export async function getTenantSettings(): Promise<TenantSettings | null> {
     .eq('tenant_id', tenantId)
     .single()
 
+  // Also fetch currency from tenants table
+  const { data: tenant } = await supabase
+    .from('tenants')
+    .select('settings')
+    .eq('id', tenantId)
+    .single()
+
+  const currency = tenant?.settings?.currency as SupportedCurrency | undefined
+  const validCurrency = currency && ['USD', 'EUR', 'GBP'].includes(currency) 
+    ? currency 
+    : 'USD'
+
   if (error || !data) {
     // Default to UTC if settings don't exist
     return {
       timezone: 'UTC',
       staff_can_accept_decline_shifts: false,
+      currency: validCurrency,
     }
   }
 
   return {
     timezone: data.timezone || 'UTC',
     staff_can_accept_decline_shifts: data.staff_can_accept_decline_shifts || false,
+    currency: validCurrency,
   }
 }
 

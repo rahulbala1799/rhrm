@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useFormatCurrency } from '@/app/(dashboard)/hooks/useFormatCurrency'
 
 interface Staff {
   pay_type: string | null
@@ -21,6 +22,7 @@ interface PayTabProps {
 }
 
 export default function PayTab({ staff, editing, formRef, onSave }: PayTabProps) {
+  const { format, symbol } = useFormatCurrency()
   const [formData, setFormData] = useState({
     pay_type: staff.pay_type || '',
     hourly_rate: staff.hourly_rate || '',
@@ -35,14 +37,6 @@ export default function PayTab({ staff, editing, formRef, onSave }: PayTabProps)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     await onSave(formData)
-  }
-
-  const formatCurrency = (amount: number | null) => {
-    if (!amount) return '—'
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP',
-    }).format(amount)
   }
 
   const formatFrequency = (freq: string | null) => {
@@ -105,7 +99,7 @@ export default function PayTab({ staff, editing, formRef, onSave }: PayTabProps)
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Hourly Rate (£)
+                    Hourly Rate ({symbol})
                   </label>
                   <input
                     type="number"
@@ -140,7 +134,7 @@ export default function PayTab({ staff, editing, formRef, onSave }: PayTabProps)
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Salary Amount (£)
+                    Salary Amount ({symbol})
                   </label>
                   <input
                     type="number"
@@ -235,7 +229,7 @@ export default function PayTab({ staff, editing, formRef, onSave }: PayTabProps)
                 {formData.overtime_rule_type === 'flat_extra' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Flat Extra Amount (£/hour)
+                      Flat Extra Amount ({symbol}/hour)
                     </label>
                     <input
                       type="number"
@@ -271,13 +265,13 @@ export default function PayTab({ staff, editing, formRef, onSave }: PayTabProps)
           {staff.pay_type === 'hourly' && staff.hourly_rate && (
             <div className="flex justify-between">
               <span className="text-gray-600">Hourly Rate:</span>
-              <span className="font-medium text-gray-900">{formatCurrency(staff.hourly_rate)} per hour</span>
+              <span className="font-medium text-gray-900">{format(staff.hourly_rate)} per hour</span>
             </div>
           )}
           {staff.pay_type === 'salary' && staff.salary_amount && (
             <div className="flex justify-between">
               <span className="text-gray-600">Salary:</span>
-              <span className="font-medium text-gray-900">{formatCurrency(staff.salary_amount)} per {formatFrequency(staff.pay_frequency)}</span>
+              <span className="font-medium text-gray-900">{format(staff.salary_amount)} per {formatFrequency(staff.pay_frequency)}</span>
             </div>
           )}
           {staff.pay_frequency && (
@@ -301,7 +295,7 @@ export default function PayTab({ staff, editing, formRef, onSave }: PayTabProps)
           {staff.overtime_enabled && staff.overtime_rule_type === 'flat_extra' && staff.overtime_flat_extra !== null && (
             <div className="flex justify-between">
               <span className="text-gray-600">Overtime Rule:</span>
-              <span className="font-medium text-gray-900">+{formatCurrency(staff.overtime_flat_extra)} per hour</span>
+              <span className="font-medium text-gray-900">+{format(staff.overtime_flat_extra)} per hour</span>
             </div>
           )}
         </div>

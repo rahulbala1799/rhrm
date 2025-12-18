@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getTenantContext } from '@/lib/auth/get-tenant-context'
 import { NextResponse } from 'next/server'
+import { SupportedCurrency } from '@/lib/currency/utils'
 
 /**
  * GET /api/settings/company
@@ -47,6 +48,17 @@ export async function PUT(request: Request) {
 
   const body = await request.json()
   const { name, slug, settings } = body
+
+  // Validate currency if provided
+  if (settings?.currency) {
+    const validCurrencies: SupportedCurrency[] = ['USD', 'EUR', 'GBP']
+    if (!validCurrencies.includes(settings.currency)) {
+      return NextResponse.json(
+        { error: `Invalid currency. Must be one of: ${validCurrencies.join(', ')}` },
+        { status: 400 }
+      )
+    }
+  }
 
   const supabase = await createClient()
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { formatCurrency } from '../utils/currency-formatting'
+import { useFormatCurrency } from '@/app/(dashboard)/hooks/useFormatCurrency'
 
 interface RowTotalCellProps {
   totalCost: number
@@ -13,6 +13,8 @@ export default function RowTotalCell({
   hasData,
   isLoading = false,
 }: RowTotalCellProps) {
+  const { format } = useFormatCurrency()
+  
   if (isLoading) {
     return (
       <div className="sticky right-0 z-10 w-24 flex-shrink-0 border-l border-gray-200 bg-gray-50 p-2">
@@ -25,7 +27,7 @@ export default function RowTotalCell({
     <div className="sticky right-0 z-10 w-24 flex-shrink-0 border-l border-gray-200 bg-gray-50 p-2 text-right">
       {hasData ? (
         <div className="text-sm font-semibold text-gray-900">
-          {formatCurrency(totalCost)}
+          {format(totalCost)}
         </div>
       ) : (
         <div className="text-sm text-gray-400">-</div>

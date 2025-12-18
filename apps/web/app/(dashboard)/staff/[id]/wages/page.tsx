@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
 import EmptyState from '@/components/ui/EmptyState'
+import { useFormatCurrency } from '@/app/(dashboard)/hooks/useFormatCurrency'
 
 interface Wages {
   staff_id: string
@@ -16,6 +17,7 @@ interface Wages {
 
 export default function StaffWagesPage() {
   const params = useParams()
+  const { format, symbol } = useFormatCurrency()
   const [wages, setWages] = useState<Wages | null>(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
@@ -161,10 +163,10 @@ export default function StaffWagesPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Hourly Rate (£) <span className="text-red-500">*</span>
+                Hourly Rate ({symbol}) <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">£</span>
+                <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">{symbol}</span>
                 <input
                   type="number"
                   step="0.01"
@@ -177,7 +179,7 @@ export default function StaffWagesPage() {
                 />
               </div>
               <p className="mt-1 text-xs text-gray-500">
-                UK National Minimum Wage: £11.44 per hour (23 and over, April 2024)
+                Note: Ensure the hourly rate complies with your local minimum wage regulations.
               </p>
             </div>
 
@@ -219,7 +221,7 @@ export default function StaffWagesPage() {
               </div>
               <div className="col-span-2">
                 <label className="text-sm font-medium text-gray-600">Hourly Rate</label>
-                <p className="text-gray-900 mt-1 text-3xl font-bold">£{wages.hourly_rate.toFixed(2)}</p>
+                <p className="text-gray-900 mt-1 text-3xl font-bold">{format(wages.hourly_rate)}</p>
                 <p className="text-xs text-gray-500 mt-1">per hour</p>
               </div>
             </div>
@@ -244,15 +246,15 @@ export default function StaffWagesPage() {
                       <div className="grid grid-cols-3 gap-4">
                         <div>
                           <label className="text-xs font-medium text-gray-600">Weekly</label>
-                          <p className="text-gray-900 mt-1 font-semibold">£{calculateWeeklyEarnings(rate, hours)}</p>
+                          <p className="text-gray-900 mt-1 font-semibold">{format(parseFloat(calculateWeeklyEarnings(rate, hours)))}</p>
                         </div>
                         <div>
                           <label className="text-xs font-medium text-gray-600">Monthly</label>
-                          <p className="text-gray-900 mt-1 font-semibold">£{calculateMonthlyEarnings(rate, hours)}</p>
+                          <p className="text-gray-900 mt-1 font-semibold">{format(parseFloat(calculateMonthlyEarnings(rate, hours)))}</p>
                         </div>
                         <div>
                           <label className="text-xs font-medium text-gray-600">Annual</label>
-                          <p className="text-gray-900 mt-1 font-semibold">£{calculateAnnualEarnings(rate, hours)}</p>
+                          <p className="text-gray-900 mt-1 font-semibold">{format(parseFloat(calculateAnnualEarnings(rate, hours)))}</p>
                         </div>
                       </div>
                     </div>

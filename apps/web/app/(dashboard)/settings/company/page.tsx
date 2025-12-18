@@ -21,6 +21,7 @@ export default function CompanySettingsPage() {
     slug: '',
     businessType: '',
     country: '',
+    currency: 'USD' as 'USD' | 'EUR' | 'GBP',
   })
 
   useEffect(() => {
@@ -38,6 +39,7 @@ export default function CompanySettingsPage() {
         slug: tenant.slug || '',
         businessType: tenant.settings?.businessType || '',
         country: tenant.settings?.country || '',
+        currency: tenant.settings?.currency || 'USD',
       })
     } catch (error) {
       console.error('Error fetching tenant:', error)
@@ -60,6 +62,7 @@ export default function CompanySettingsPage() {
           settings: {
             businessType: formData.businessType,
             country: formData.country,
+            currency: formData.currency,
           },
         }),
       })
@@ -177,6 +180,36 @@ export default function CompanySettingsPage() {
               <option value="AU">Australia</option>
               <option value="IE">Ireland</option>
             </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Currency <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={formData.currency}
+              onChange={(e) => setFormData({ ...formData, currency: e.target.value as 'USD' | 'EUR' | 'GBP' })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+            >
+              <option value="USD">USD - US Dollar ($)</option>
+              <option value="EUR">EUR - Euro (€)</option>
+              <option value="GBP">GBP - British Pound (£)</option>
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              This currency will be used for all financial displays including wages, budgets, and shift costs.
+            </p>
+            
+            {/* Currency Preview */}
+            <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <h4 className="text-xs font-semibold text-blue-900 mb-1">Preview</h4>
+              <p className="text-xs text-blue-800">
+                Example: {new Intl.NumberFormat(
+                  formData.currency === 'USD' ? 'en-US' : formData.currency === 'EUR' ? 'de-DE' : 'en-GB',
+                  { style: 'currency', currency: formData.currency }
+                ).format(1234.56)}
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-4 pt-4">

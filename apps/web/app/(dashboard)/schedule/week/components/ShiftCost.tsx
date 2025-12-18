@@ -2,7 +2,7 @@
 
 import { Shift } from '../hooks/useWeekShifts'
 import { calculateShiftCost } from '../utils/budget-calculations'
-import { formatCurrency } from '../utils/currency-formatting'
+import { useFormatCurrency } from '@/app/(dashboard)/hooks/useFormatCurrency'
 
 interface ShiftCostProps {
   shift: Shift
@@ -17,6 +17,8 @@ export default function ShiftCost({
   timezone,
   isLoading = false,
 }: ShiftCostProps) {
+  const { format } = useFormatCurrency()
+  
   if (isLoading) {
     return (
       <div className="animate-pulse bg-gray-200 h-3 w-12 rounded mt-1" />
@@ -40,7 +42,7 @@ export default function ShiftCost({
 
   return (
     <div className="text-xs font-medium text-gray-700 mt-1">
-      {formatCurrency(cost)}
+      {format(cost)}
     </div>
   )
 }

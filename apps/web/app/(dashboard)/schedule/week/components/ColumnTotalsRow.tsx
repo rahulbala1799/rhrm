@@ -1,7 +1,7 @@
 'use client'
 
 import { format, addDays } from 'date-fns'
-import { formatCurrency } from '../utils/currency-formatting'
+import { useFormatCurrency } from '@/app/(dashboard)/hooks/useFormatCurrency'
 
 interface ColumnTotalsRowProps {
   weekStart: Date
@@ -16,6 +16,7 @@ export default function ColumnTotalsRow({
   grandTotal,
   isLoading = false,
 }: ColumnTotalsRowProps) {
+  const { format } = useFormatCurrency()
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
 
   return (
@@ -35,7 +36,7 @@ export default function ColumnTotalsRow({
             <div className="animate-pulse bg-gray-200 h-5 w-16 rounded mx-auto" />
           ) : (
             <div className="text-sm font-semibold text-gray-900">
-              {formatCurrency(dayTotals[index] || 0)}
+              {format(dayTotals[index] || 0)}
             </div>
           )}
         </div>
@@ -47,7 +48,7 @@ export default function ColumnTotalsRow({
           <div className="animate-pulse bg-gray-200 h-5 w-20 rounded ml-auto" />
         ) : (
           <div className="text-base font-bold text-gray-900">
-            {formatCurrency(grandTotal)}
+            {format(grandTotal)}
           </div>
         )}
       </div>

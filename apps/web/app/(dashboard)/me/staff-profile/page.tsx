@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
+import { useFormatCurrency } from '@/app/(dashboard)/hooks/useFormatCurrency'
 
 interface Staff {
   id: string
@@ -131,13 +132,7 @@ export default function StaffProfilePage() {
     return type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
   }
 
-  const formatCurrency = (amount: number | null) => {
-    if (!amount) return '—'
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP',
-    }).format(amount)
-  }
+  const { format } = useFormatCurrency()
 
   if (loading) {
     return (
@@ -385,9 +380,9 @@ export default function StaffProfilePage() {
                     <label className="block text-sm font-medium text-gray-600 mb-1">Pay Type</label>
                     <p className="text-gray-900">
                       {staff.pay_type === 'hourly' && staff.hourly_rate
-                        ? `${formatCurrency(staff.hourly_rate)} per hour, ${staff.pay_frequency || ''}`
+                        ? `${format(staff.hourly_rate)} per hour, ${staff.pay_frequency || ''}`
                         : staff.pay_type === 'salary' && staff.salary_amount
-                        ? `${formatCurrency(staff.salary_amount)} per ${staff.pay_frequency || ''}`
+                        ? `${format(staff.salary_amount)} per ${staff.pay_frequency || ''}`
                         : '—'}
                     </p>
                   </div>
