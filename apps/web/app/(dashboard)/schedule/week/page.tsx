@@ -225,8 +225,9 @@ export default function WeekPlannerPage() {
       }
 
       // Convert to UTC using shared helper
-      const startTimeUTC = toUtcIsoInTenantTz(newStartTime, timezone)
-      const endTimeUTC = toUtcIsoInTenantTz(newEndTime, timezone)
+      // applyTimeToDate returns ISO string, convert to Date first
+      const startTimeUTC = toUtcIsoInTenantTz(new Date(newStartTime), timezone)
+      const endTimeUTC = toUtcIsoInTenantTz(new Date(newEndTime), timezone)
 
       await updateShift(shiftId, {
         staff_id: targetStaffId,
