@@ -85,7 +85,7 @@ export async function POST(request: Request) {
     .single()
 
   if (existingMembership) {
-    // Update invitation status and return success
+    // Update invitation status
     await serviceClient
       .from('invitations')
       .update({ 
@@ -93,6 +93,47 @@ export async function POST(request: Request) {
         accepted_at: new Date().toISOString(),
       })
       .eq('id', invitation.id)
+
+    // Ensure staff record exists if role is 'staff' (in case it wasn't created before)
+    if (invitation.role === 'staff') {
+      const { data: existingStaff } = await serviceClient
+        .from('staff')
+        .select('id')
+        .eq('tenant_id', invitation.tenant_id)
+        .eq('user_id', user.id)
+        .single()
+
+      if (!existingStaff) {
+        // Create staff record if it doesn't exist
+        const { data: profile } = await serviceClient
+          .from('profiles')
+          .select('full_name, email, phone')
+          .eq('id', user.id)
+          .single()
+
+        const fullName = profile?.full_name || user.email || 'Staff Member'
+        const nameParts = fullName.trim().split(/\s+/)
+        const first_name = nameParts[0] || 'Staff'
+        const last_name = nameParts.slice(1).join(' ') || 'Member'
+
+        const timestamp = Date.now().toString().slice(-6)
+        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+        const employee_number = `EMP${timestamp}${random}`
+
+        await serviceClient
+          .from('staff')
+          .insert({
+            tenant_id: invitation.tenant_id,
+            user_id: user.id,
+            employee_number,
+            first_name,
+            last_name,
+            email: profile?.email || user.email || null,
+            phone: profile?.phone || null,
+            status: 'active',
+          })
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -131,6 +172,86 @@ export async function POST(request: Request) {
       accepted_at: new Date().toISOString(),
     })
     .eq('id', invitation.id)
+
+  // Create staff record immediately if role is 'staff'
+  // This ensures staff appear in the list as soon as they accept the invitation
+  if (invitation.role === 'staff') {
+    // Check if staff record already exists
+    const { data: existingStaff } = await serviceClient
+      .from('staff')
+      .select('id')
+      .eq('tenant_id', invitation.tenant_id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (!existingStaff) {
+      // Get user profile for name and email
+      const { data: profile } = await serviceClient
+        .from('profiles')
+        .select('full_name, email, phone')
+        .eq('id', user.id)
+        .single()
+
+      // Parse full_name into first_name and last_name
+      const fullName = profile?.full_name || user.email || 'Staff Member'
+      const nameParts = fullName.trim().split(/\s+/)
+      const first_name = nameParts[0] || 'Staff'
+      const last_name = nameParts.slice(1).join(' ') || 'Member'
+
+      // Generate employee number (format: EMP + timestamp + random)
+      const timestamp = Date.now().toString().slice(-6)
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+      const employee_number = `EMP${timestamp}${random}`
+
+      // Create staff record
+      const { data: staff, error: staffError } = await serviceClient
+        .from('staff')
+        .insert({
+          tenant_id: invitation.tenant_id,
+          user_id: user.id,
+          employee_number,
+          first_name,
+          last_name,
+          email: profile?.email || user.email || null,
+          phone: profile?.phone || null,
+          status: 'active',
+        })
+        .select('id, employee_number')
+        .single()
+
+      if (staffError) {
+        // If employee number conflict, try again with different number
+        if (staffError.code === '23505') {
+          const retryTimestamp = Date.now().toString().slice(-6)
+          const retryRandom = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
+          const retryEmployeeNumber = `EMP${retryTimestamp}${retryRandom}`
+
+          const { error: retryError } = await serviceClient
+            .from('staff')
+            .insert({
+              tenant_id: invitation.tenant_id,
+              user_id: user.id,
+              employee_number: retryEmployeeNumber,
+              first_name,
+              last_name,
+              email: profile?.email || user.email || null,
+              phone: profile?.phone || null,
+              status: 'active',
+            })
+
+          if (retryError) {
+            console.error('Error creating staff record (retry):', retryError)
+            // Don't fail the invitation acceptance if staff record creation fails
+            // Staff can complete onboarding later to create the record
+          }
+        } else {
+          console.error('Error creating staff record:', staffError)
+          // Don't fail the invitation acceptance if staff record creation fails
+          // Staff can complete onboarding later to create the record
+        }
+      }
+    }
+  }
 
   // Log to audit
   await serviceClient.from('audit_logs').insert({
