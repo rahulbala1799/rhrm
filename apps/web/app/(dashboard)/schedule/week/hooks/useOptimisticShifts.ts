@@ -56,17 +56,17 @@ export function useOptimisticShifts(
     const merged = new Map<string, Shift>()
     
     // Add all real shifts first
-    for (const [id, shift] of realShiftsMap) {
+    Array.from(realShiftsMap.entries()).forEach(([id, shift]) => {
       if (!pendingMutationsRef.current.has(id)) {
         merged.set(id, shift)
       }
-    }
+    })
 
     // Add optimistic shifts (overwrite real if exists)
-    for (const [key, optimisticShift] of optimisticShiftsMap) {
+    Array.from(optimisticShiftsMap.entries()).forEach(([key, optimisticShift]) => {
       const shift = optimisticShift as Shift
       merged.set(shift.id, shift)
-    }
+    })
 
     return Array.from(merged.values())
   }, [shifts, optimisticShifts])
