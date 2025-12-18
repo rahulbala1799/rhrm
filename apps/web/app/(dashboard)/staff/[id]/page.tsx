@@ -13,6 +13,7 @@ import HoursRulesTab from './components/HoursRulesTab'
 import AvailabilityTab from './components/AvailabilityTab'
 import DocumentsTab from './components/DocumentsTab'
 import JobRolesTab from './components/JobRolesTab'
+import LocationsTab from './components/LocationsTab'
 
 interface Staff {
   id: string
@@ -92,6 +93,7 @@ const TABS = [
   { id: 'profile', label: 'Profile' },
   { id: 'employment', label: 'Employment' },
   { id: 'job-roles', label: 'Job Roles' },
+  { id: 'locations', label: 'Locations' },
   { id: 'pay', label: 'Pay' },
   { id: 'hours-rules', label: 'Hours & Rules' },
   { id: 'availability', label: 'Availability' },
@@ -362,6 +364,9 @@ export default function StaffDetailPage() {
         )}
         {activeTab === 'job-roles' && staff && (
           <JobRolesTab staffId={staff.id} />
+        )}
+        {activeTab === 'locations' && staff && (
+          <LocationsTab staffId={staff.id} />
         )}
         {activeTab === 'pay' && (
           <PayTab

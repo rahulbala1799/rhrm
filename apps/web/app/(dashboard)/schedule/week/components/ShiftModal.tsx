@@ -80,18 +80,23 @@ export default function ShiftModal({
         }
       }
 
-      // Fetch staff record to get location_id
-      const staffResponse = await fetch(`/api/staff/${staffId}`)
-      if (staffResponse.ok) {
-        const { staff } = await staffResponse.json()
-        if (staff?.location_id) {
-          // Check if staff has only one location
-          const staffLocation = locationList.find(loc => loc.id === staff.location_id)
-          if (staffLocation) {
-            setStaffLocations([staffLocation])
-            // Auto-select location if only one and not editing
-            if (!shift) {
-              setFormData(prev => ({ ...prev, location_id: staff.location_id }))
+      // Fetch staff locations from new API
+      const locationsResponse = await fetch(`/api/staff/${staffId}/locations`)
+      if (locationsResponse.ok) {
+        const { locations } = await locationsResponse.json()
+        setStaffLocations(locations || [])
+
+        // Auto-select location if only one and not editing
+        if (locations && locations.length === 1 && !shift) {
+          setFormData(prev => ({ ...prev, location_id: locations[0].id }))
+        } else if (shift && shift.location_id) {
+          // When editing, ensure the shift's location is in the list
+          const shiftLocation = locations?.find((loc: { id: string }) => loc.id === shift.location_id)
+          if (!shiftLocation && shift.location_id) {
+            // If shift location is not in staff's assigned locations, add it temporarily
+            const allLocation = locationList.find(loc => loc.id === shift.location_id)
+            if (allLocation) {
+              setStaffLocations(prev => [...(prev || []), allLocation])
             }
           }
         }
@@ -260,19 +265,30 @@ export default function ShiftModal({
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Location *
                   </label>
-                  <select
-                    value={formData.location_id}
-                    onChange={(e) => setFormData({ ...formData, location_id: e.target.value })}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">Select location</option>
-                    {locationList.map((location) => (
-                      <option key={location.id} value={location.id}>
-                        {location.name}
-                      </option>
-                    ))}
-                  </select>
+                  {staffLocations.length === 0 && formData.staff_id ? (
+                    <div className="w-full px-3 py-2 border border-red-300 rounded-lg bg-red-50">
+                      <p className="text-sm text-red-800">
+                        No locations assigned to this staff member. Please assign locations in their profile.
+                      </p>
+                    </div>
+                  ) : (
+                    <select
+                      value={formData.location_id}
+                      onChange={(e) => setFormData({ ...formData, location_id: e.target.value })}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select location</option>
+                      {staffLocations.map((location) => (
+                        <option key={location.id} value={location.id}>
+                          {location.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {staffLocations.length === 0 && formData.staff_id && (
+                    <p className="mt-1 text-xs text-gray-500">Assign locations to this staff member in their profile</p>
+                  )}
                 </div>
               )}
 
