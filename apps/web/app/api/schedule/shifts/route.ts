@@ -69,28 +69,28 @@ export async function POST(request: Request) {
   }
 
   // Verify staff and location belong to tenant
-  const { data: staff } = await supabase
+  const { data: staffRecord } = await supabase
     .from('staff')
     .select('id')
     .eq('id', staff_id)
     .eq('tenant_id', tenantId)
     .single()
 
-  if (!staff) {
+  if (!staffRecord) {
     return NextResponse.json(
       { error: 'Staff member not found or not in tenant' },
       { status: 404 }
     )
   }
 
-  const { data: location } = await supabase
+  const { data: locationRecord } = await supabase
     .from('locations')
     .select('id')
     .eq('id', location_id)
     .eq('tenant_id', tenantId)
     .single()
 
-  if (!location) {
+  if (!locationRecord) {
     return NextResponse.json(
       { error: 'Location not found or not in tenant' },
       { status: 404 }
