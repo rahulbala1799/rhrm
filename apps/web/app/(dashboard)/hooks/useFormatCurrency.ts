@@ -2,12 +2,12 @@
 
 import { useCurrency } from './useCurrency'
 import { formatCurrency as formatCurrencyUtil, getCurrencySymbol } from '../schedule/week/utils/currency-formatting'
-import { SupportedCurrency } from '@/lib/currency/types'
 
 export function useFormatCurrency() {
-  const { currency } = useCurrency()
+  const { currency, loading } = useCurrency()
   
   const format = (amount: number | null, decimals: number = 2) => {
+    // Format with current currency (will update when currency loads)
     return formatCurrencyUtil(amount, currency, decimals)
   }
   
@@ -16,7 +16,8 @@ export function useFormatCurrency() {
   return {
     format,
     symbol,
-    currency
+    currency,
+    loading
   }
 }
 

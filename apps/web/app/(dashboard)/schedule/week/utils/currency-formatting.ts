@@ -1,8 +1,8 @@
 import { SupportedCurrency, CURRENCY_CONFIGS } from '@/lib/currency/types'
 
 /**
- * Format amount as currency using tenant's currency setting
- * This function should be called from client components that have access to currency context
+ * Format amount as currency with consistent symbol placement (symbol before number)
+ * This ensures all currencies display as: €20.50, $20.50, £20.50
  * 
  * @param amount - Amount to format (can be null)
  * @param currency - Currency code (default: USD)
@@ -20,23 +20,17 @@ export function formatCurrency(
   
   const config = CURRENCY_CONFIGS[currency]
   
-  // Handle zero values: show currency symbol with 0.00
-  if (amount === 0) {
-    return new Intl.NumberFormat(config.locale, {
-      style: 'currency',
-      currency: config.code,
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    }).format(0)
-  }
-  
-  // Format with proper locale and currency
-  return new Intl.NumberFormat(config.locale, {
-    style: 'currency',
-    currency: config.code,
+  // Format number with proper locale (for decimal separator, thousand separator)
+  const numberFormatter = new Intl.NumberFormat(config.locale, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
-  }).format(amount)
+  })
+  
+  const formattedNumber = numberFormatter.format(amount)
+  
+  // Always place symbol before the number for consistency
+  // Format: €20.50, $20.50, £20.50
+  return `${config.symbol}${formattedNumber}`
 }
 
 /**
