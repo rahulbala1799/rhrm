@@ -8,7 +8,7 @@ interface ShiftBlockProps {
   shift: Shift
   timezone: string
   conflicts?: Array<{ shift_id: string; type: string; message: string }>
-  onClick?: () => void
+  onClick?: (e?: React.MouseEvent) => void
   onDragStart?: (e: React.MouseEvent) => void
   onResizeStart?: (e: React.MouseEvent, edge: 'left' | 'right') => void
   onContextMenu?: (e: React.MouseEvent) => void
@@ -45,13 +45,17 @@ export default function ShiftBlock({
 
   const displayName = shift.staff?.preferred_name || shift.staff?.first_name || 'Unknown'
 
+  // Determine border style based on status
+  const borderStyle = shift.status === 'draft' ? 'border-dashed' : 'border-solid'
+  const opacity = shift.status === 'draft' ? 'opacity-80' : 'opacity-100'
+
   return (
     <div className="relative h-full w-full group">
       {/* Resize handles */}
       {shift.status !== 'cancelled' && (
         <>
           <div
-            className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-blue-400 opacity-0 group-hover:opacity-50 transition-opacity z-10"
+            className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-blue-400/50 opacity-0 group-hover:opacity-100 transition-opacity z-10"
             onMouseDown={(e) => {
               e.stopPropagation()
               onResizeStart?.(e, 'left')
@@ -59,7 +63,7 @@ export default function ShiftBlock({
             title="Resize start time"
           />
           <div
-            className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-blue-400 opacity-0 group-hover:opacity-50 transition-opacity z-10"
+            className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-blue-400/50 opacity-0 group-hover:opacity-100 transition-opacity z-10"
             onMouseDown={(e) => {
               e.stopPropagation()
               onResizeStart?.(e, 'right')
@@ -73,12 +77,14 @@ export default function ShiftBlock({
       <button
         className={`
           h-full w-full rounded border-2 p-1 text-left text-xs
-          hover:shadow-md transition-all cursor-move
+          hover:shadow-md transition-all
           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
           ${!useRoleColors ? statusColors[shift.status] : ''}
-          ${shift.status === 'cancelled' ? 'cursor-not-allowed opacity-60' : ''}
+          ${shift.status === 'cancelled' ? 'cursor-not-allowed opacity-60' : 'cursor-move'}
           ${isSelected ? 'ring-2 ring-blue-500 ring-offset-1 shadow-lg' : ''}
           ${hasConflict ? 'border-red-500' : ''}
+          ${borderStyle}
+          ${opacity}
         `}
         style={
           useRoleColors
@@ -86,13 +92,19 @@ export default function ShiftBlock({
                 backgroundColor: bgColor,
                 color: textColor,
                 borderColor: hasConflict ? '#ef4444' : bgColor,
+                borderStyle: shift.status === 'draft' ? 'dashed' : 'solid',
+                opacity: shift.status === 'draft' ? 0.8 : 1,
               }
             : undefined
         }
-        onClick={onClick}
+        onClick={(e) => onClick?.(e)}
         onMouseDown={(e) => {
           if (shift.status !== 'cancelled' && !e.defaultPrevented) {
-            onDragStart?.(e)
+            // Only start drag if not clicking on resize handle
+            const target = e.target as HTMLElement
+            if (!target.closest('.cursor-ew-resize')) {
+              onDragStart?.(e)
+            }
           }
         }}
         onContextMenu={onContextMenu}
@@ -111,7 +123,9 @@ export default function ShiftBlock({
             )}
           </div>
           {hasConflict && (
-            <ExclamationTriangleIcon className="h-4 w-4 text-red-500 flex-shrink-0 ml-1" />
+            <div className="flex-shrink-0 ml-1">
+              <ExclamationTriangleIcon className="h-4 w-4 text-red-500" />
+            </div>
           )}
         </div>
       </button>
