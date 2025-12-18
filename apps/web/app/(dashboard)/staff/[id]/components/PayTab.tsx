@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useFormatCurrency } from '@/app/(dashboard)/hooks/useFormatCurrency'
+import RateHistorySection from './RateHistorySection'
 
 interface Staff {
   pay_type: string | null
@@ -15,13 +16,14 @@ interface Staff {
 }
 
 interface PayTabProps {
-  staff: Staff
+  staff: Staff & { id: string }
   editing: boolean
   formRef?: (ref: HTMLFormElement | null) => void
   onSave: (data: any) => Promise<void>
+  role?: string | null
 }
 
-export default function PayTab({ staff, editing, formRef, onSave }: PayTabProps) {
+export default function PayTab({ staff, editing, formRef, onSave, role }: PayTabProps) {
   const { format, symbol } = useFormatCurrency()
   const [formData, setFormData] = useState({
     pay_type: staff.pay_type || '',
@@ -299,6 +301,11 @@ export default function PayTab({ staff, editing, formRef, onSave }: PayTabProps)
             </div>
           )}
         </div>
+      </div>
+
+      {/* Rate History Section - Only visible to admins */}
+      <div className="mt-6">
+        <RateHistorySection staffId={staff.id} role={role || null} />
       </div>
     </div>
   )

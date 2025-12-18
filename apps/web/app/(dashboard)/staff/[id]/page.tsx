@@ -373,6 +373,7 @@ export default function StaffDetailPage() {
             staff={staff}
             editing={editing && canEdit}
             formRef={setFormRef}
+            role={role}
             onSave={async (data) => {
               setSaving(true)
               try {
