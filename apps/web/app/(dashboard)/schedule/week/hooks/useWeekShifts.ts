@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { format, startOfWeek, addDays, parseISO } from 'date-fns'
-import { zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz'
+import { format, startOfWeek, addDays } from 'date-fns'
 
 export interface Shift {
   id: string
