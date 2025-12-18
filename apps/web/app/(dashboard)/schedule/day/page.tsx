@@ -273,6 +273,133 @@ export default function DayViewPage() {
     }
   }
 
+  const handleShiftDuplicate = useCallback(async (shift: Shift) => {
+    try {
+      const staff = staffList.find(s => s.id === shift.staff_id)
+      const defaultLocationId = staff?.location_id || shift.location_id || locationList[0]?.id
+
+      if (!defaultLocationId) {
+        setToast({ message: 'No location available', type: 'error' })
+        return
+      }
+
+      const response = await fetch('/api/schedule/shifts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          staff_id: shift.staff_id,
+          location_id: defaultLocationId,
+          role_id: shift.role_id,
+          start_time: shift.start_time,
+          end_time: shift.end_time,
+          break_duration_minutes: shift.break_duration_minutes,
+          status: 'draft',
+          notes: shift.notes,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to duplicate shift')
+      }
+
+      setToast({ message: 'Shift duplicated successfully', type: 'success' })
+      refetch()
+    } catch (err: any) {
+      setToast({
+        message: err.message || 'Failed to duplicate shift',
+        type: 'error',
+      })
+    }
+  }, [staffList, locationList, refetch])
+
+  const handleShiftPublish = useCallback(async (shiftId: string) => {
+    try {
+      const response = await fetch(`/api/schedule/shifts/${shiftId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'published' }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to publish shift')
+      }
+
+      setToast({ message: 'Shift published successfully', type: 'success' })
+      refetch()
+    } catch (err: any) {
+      setToast({
+        message: err.message || 'Failed to publish shift',
+        type: 'error',
+      })
+    }
+  }, [refetch])
+
+  const handleShiftUnpublish = useCallback(async (shiftId: string) => {
+    try {
+      const response = await fetch(`/api/schedule/shifts/${shiftId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'draft' }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to unpublish shift')
+      }
+
+      setToast({ message: 'Shift unpublished successfully', type: 'success' })
+      refetch()
+    } catch (err: any) {
+      setToast({
+        message: err.message || 'Failed to unpublish shift',
+        type: 'error',
+      })
+    }
+  }, [refetch])
+
+  const handleBulkPublish = useCallback(async () => {
+    try {
+      const draftShifts = shifts.filter(s => s.status === 'draft')
+      if (draftShifts.length === 0) {
+        setToast({ message: 'No draft shifts to publish', type: 'warning' })
+        return
+      }
+
+      // Publish all drafts
+      const promises = draftShifts.map(shift =>
+        fetch(`/api/schedule/shifts/${shift.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'published' }),
+        })
+      )
+
+      const results = await Promise.allSettled(promises)
+      const failed = results.filter(r => r.status === 'rejected').length
+
+      if (failed > 0) {
+        setToast({
+          message: `Published ${draftShifts.length - failed} shifts, ${failed} failed`,
+          type: failed === draftShifts.length ? 'error' : 'warning',
+        })
+      } else {
+        setToast({
+          message: `Published ${draftShifts.length} shift${draftShifts.length > 1 ? 's' : ''} successfully`,
+          type: 'success',
+        })
+      }
+
+      refetch()
+    } catch (err: any) {
+      setToast({
+        message: err.message || 'Failed to publish shifts',
+        type: 'error',
+      })
+    }
+  }, [shifts, refetch])
+
   const handleDateChange = (newDate: Date) => {
     setCurrentDate(startOfDay(newDate))
     setSelectedShiftIds([]) // Clear selection when changing date
@@ -326,6 +453,15 @@ export default function DayViewPage() {
             >
               📏 Snap
             </button>
+            {shifts.filter(s => s.status === 'draft').length > 0 && (
+              <button
+                onClick={handleBulkPublish}
+                className="px-4 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                title="Publish all draft shifts"
+              >
+                Publish All ({shifts.filter(s => s.status === 'draft').length})
+              </button>
+            )}
             <div className="text-sm text-gray-600">
               {totals?.totalShifts || 0} shifts • {totals?.totalStaff || 0} staff • {totals?.totalHours?.toFixed(1) || 0} hours
             </div>
@@ -355,6 +491,9 @@ export default function DayViewPage() {
               onShiftCreate={handleShiftCreate}
               onShiftMove={handleShiftMove}
               onShiftResize={handleShiftResize}
+              onShiftDuplicate={handleShiftDuplicate}
+              onShiftPublish={handleShiftPublish}
+              onShiftUnpublish={handleShiftUnpublish}
               snapEnabled={snapEnabled}
               selectedShiftIds={selectedShiftIds}
               onSelectionChange={setSelectedShiftIds}

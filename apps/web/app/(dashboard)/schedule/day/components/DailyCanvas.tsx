@@ -4,6 +4,7 @@ import { useMemo, useState, useRef, useCallback, useEffect } from 'react'
 import { format, toZonedTime, fromZonedTime } from 'date-fns-tz'
 import { Shift } from '../hooks/useDayShifts'
 import ShiftBlock from './ShiftBlock'
+import ShiftContextMenu from './ShiftContextMenu'
 import { applyTimeToDate } from '@/lib/schedule/timezone-utils'
 
 interface DailyCanvasProps {
@@ -26,6 +27,9 @@ interface DailyCanvasProps {
   onShiftCreate?: (staffId: string, startTime: Date, endTime: Date) => void
   onShiftMove?: (shiftId: string, newStaffId: string, newStartTime: Date, newEndTime: Date) => void
   onShiftResize?: (shiftId: string, newStartTime: Date, newEndTime: Date) => void
+  onShiftDuplicate?: (shift: Shift) => void
+  onShiftPublish?: (shiftId: string) => void
+  onShiftUnpublish?: (shiftId: string) => void
   snapEnabled?: boolean
   selectedShiftIds?: string[]
   onSelectionChange?: (shiftIds: string[]) => void
@@ -61,6 +65,9 @@ export default function DailyCanvas({
   onShiftCreate,
   onShiftMove,
   onShiftResize,
+  onShiftDuplicate,
+  onShiftPublish,
+  onShiftUnpublish,
   snapEnabled = true,
   selectedShiftIds = [],
   onSelectionChange,
@@ -91,6 +98,11 @@ export default function DailyCanvas({
     endTime: Date
     isValid: boolean
     reason?: string
+  } | null>(null)
+  const [contextMenu, setContextMenu] = useState<{
+    x: number
+    y: number
+    shift: Shift
   } | null>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
 
@@ -183,14 +195,20 @@ export default function DailyCanvas({
     if (e.button !== 0) return // Only left click
     if (draggingShift || resizingShift) return
 
+    const canvasRect = canvasRef.current?.getBoundingClientRect()
+    if (!canvasRect) return
+
     const [hour, minute] = timeSlot.split(':').map(Number)
     const startTime = new Date(date)
     startTime.setHours(hour, minute, 0, 0)
     const snappedStart = snapTime(fromZonedTime(startTime, timezone))
 
+    // Get coordinates relative to canvas
+    const startX = e.clientX - canvasRect.left
+
     setCreatingShift({
       staffId,
-      startX: e.clientX,
+      startX,
       startTime: snappedStart,
     })
   }, [date, snapTime, timezone, draggingShift, resizingShift])
@@ -200,8 +218,10 @@ export default function DailyCanvas({
     if (!creatingShift && !draggingShift && !resizingShift) return
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (creatingShift) {
-        const deltaX = e.clientX - creatingShift.startX
+      if (creatingShift && canvasRef.current) {
+        const canvasRect = canvasRef.current.getBoundingClientRect()
+        const currentX = e.clientX - canvasRect.left
+        const deltaX = currentX - creatingShift.startX
         const slotWidth = 24
         const slots = Math.max(1, Math.round(deltaX / slotWidth))
         const endTime = new Date(creatingShift.startTime)
@@ -222,9 +242,13 @@ export default function DailyCanvas({
           isValid: !overlap.hasOverlap,
           reason: overlap.reason,
         })
-      } else if (draggingShift) {
-        const deltaX = e.clientX - draggingShift.startX
-        const deltaY = e.clientY - draggingShift.startY
+      } else if (draggingShift && canvasRef.current) {
+        const canvasRect = canvasRef.current.getBoundingClientRect()
+        const currentX = e.clientX - canvasRect.left
+        const currentY = e.clientY - canvasRect.top
+        
+        const deltaX = currentX - draggingShift.startX
+        const deltaY = currentY - draggingShift.startY
         const shiftHeight = STAFF_ROW_HEIGHT
 
         // Find target staff row
@@ -269,8 +293,10 @@ export default function DailyCanvas({
           isValid: !overlap.hasOverlap,
           reason: overlap.reason,
         })
-      } else if (resizingShift) {
-        const deltaX = e.clientX - resizingShift.startX
+      } else if (resizingShift && canvasRef.current) {
+        const canvasRect = canvasRef.current.getBoundingClientRect()
+        const currentX = e.clientX - canvasRect.left
+        const deltaX = currentX - resizingShift.startX
         const slotWidth = 24
         const slots = Math.round(deltaX / slotWidth)
         const minutesDelta = slots * MINUTES_PER_SLOT
@@ -348,8 +374,12 @@ export default function DailyCanvas({
     e.preventDefault()
     e.stopPropagation()
 
-    const startX = e.clientX
-    const startY = e.clientY
+    const canvasRect = canvasRef.current?.getBoundingClientRect()
+    if (!canvasRect) return
+
+    // Get coordinates relative to canvas
+    const startX = e.clientX - canvasRect.left
+    const startY = e.clientY - canvasRect.top
     const originalStart = new Date(shift.start_time)
     const originalEnd = new Date(shift.end_time)
     const originalStaffId = shift.staff_id
@@ -370,7 +400,11 @@ export default function DailyCanvas({
     e.preventDefault()
     e.stopPropagation()
 
-    const startX = e.clientX
+    const canvasRect = canvasRef.current?.getBoundingClientRect()
+    if (!canvasRect) return
+
+    // Get coordinates relative to canvas
+    const startX = e.clientX - canvasRect.left
     const originalStart = new Date(shift.start_time)
     const originalEnd = new Date(shift.end_time)
 
@@ -420,15 +454,15 @@ export default function DailyCanvas({
         </div>
 
         {/* Time Grid */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative flex flex-col">
           {/* Time Header */}
-          <div className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50">
+          <div className="sticky top-0 z-30 border-b border-gray-200 bg-gray-50" style={{ height: '40px' }}>
             <div className="flex relative" style={{ width: `${TIME_SLOTS.length * 24}px` }}>
               {TIME_SLOTS.filter((_, i) => i % 4 === 0).map((time, idx) => (
                 <div
                   key={time}
                   className="absolute border-r border-gray-200 px-2 py-2 text-xs font-medium text-gray-500"
-                  style={{ left: `${idx * 96}px`, width: '96px' }}
+                  style={{ left: `${idx * 96}px`, width: '96px', height: '40px' }}
                 >
                   {time}
                 </div>
@@ -437,7 +471,7 @@ export default function DailyCanvas({
           </div>
 
           {/* Staff Rows with Shifts */}
-          <div className="relative">
+          <div className="relative flex-1 overflow-auto">
             {sortedStaff.map((staff, staffIndex) => {
               const staffShifts = shiftsByStaff.get(staff.id) || []
               const isSelected = selectedShiftIds.includes(staff.id)
@@ -482,6 +516,15 @@ export default function DailyCanvas({
                           onClick={() => onShiftClick?.(shift)}
                           onDragStart={(e) => handleShiftDragStart(e, shift)}
                           onResizeStart={(e, edge) => handleShiftResizeStart(e, shift, edge)}
+                          onContextMenu={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setContextMenu({
+                              x: e.clientX,
+                              y: e.clientY,
+                              shift,
+                            })
+                          }}
                           isSelected={isShiftSelected}
                           hasConflict={hasConflict}
                         />
@@ -535,6 +578,22 @@ export default function DailyCanvas({
           </div>
         </div>
       </div>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <ShiftContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          shift={contextMenu.shift}
+          onClose={() => setContextMenu(null)}
+          onEdit={() => onShiftClick?.(contextMenu.shift)}
+          onDelete={() => onDeleteShift?.(contextMenu.shift.id)}
+          onDuplicate={() => onShiftDuplicate?.(contextMenu.shift)}
+          onPublish={() => onShiftPublish?.(contextMenu.shift.id)}
+          onUnpublish={() => onShiftUnpublish?.(contextMenu.shift.id)}
+          canPublish={true}
+        />
+      )}
     </div>
   )
 }

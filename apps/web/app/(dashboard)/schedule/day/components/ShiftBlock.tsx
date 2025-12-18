@@ -11,6 +11,7 @@ interface ShiftBlockProps {
   onClick?: () => void
   onDragStart?: (e: React.MouseEvent) => void
   onResizeStart?: (e: React.MouseEvent, edge: 'left' | 'right') => void
+  onContextMenu?: (e: React.MouseEvent) => void
   isSelected?: boolean
   hasConflict?: boolean
 }
@@ -29,6 +30,7 @@ export default function ShiftBlock({
   onClick,
   onDragStart,
   onResizeStart,
+  onContextMenu,
   isSelected = false,
   hasConflict = false,
 }: ShiftBlockProps) {
@@ -93,6 +95,7 @@ export default function ShiftBlock({
             onDragStart?.(e)
           }
         }}
+        onContextMenu={onContextMenu}
         disabled={shift.status === 'cancelled'}
         title={`${displayName} • ${timeStr} • ${locationName}${conflict ? ` • ${conflict.message}` : ''}`}
         aria-label={`${displayName} shift ${timeStr} at ${locationName}${conflict ? ` - ${conflict.message}` : ''}`}
