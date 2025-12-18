@@ -446,6 +446,7 @@ export default function DailyCanvas({
           return null
         }
       )
+    }
 
     const handleMouseUp = () => {
       const result = dragControllerRef.current.endDrag()

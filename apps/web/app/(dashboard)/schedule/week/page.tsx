@@ -238,12 +238,6 @@ export default function WeekPlannerPage() {
       const normalizedStart = normalizeTimeForCommit(new Date(newStartTime), timezone, 15)
       const normalizedEnd = normalizeTimeForCommit(new Date(newEndTime), timezone, 15)
 
-      const originalShift = shifts.find((s) => s.id === shiftId)
-      if (!originalShift) {
-        setToast({ message: 'Shift not found', type: 'error' })
-        return
-      }
-
       await updateShift(shiftId, {
         staff_id: targetStaffId,
         start_time: normalizedStart,
