@@ -9,6 +9,10 @@ interface ShiftBlockProps {
   timezone: string
   conflicts?: Array<{ shift_id: string; type: string; message: string }>
   onClick?: () => void
+  onDragStart?: (e: React.MouseEvent) => void
+  onResizeStart?: (e: React.MouseEvent, edge: 'left' | 'right') => void
+  isSelected?: boolean
+  hasConflict?: boolean
 }
 
 const statusColors = {
@@ -23,10 +27,13 @@ export default function ShiftBlock({
   timezone,
   conflicts = [],
   onClick,
+  onDragStart,
+  onResizeStart,
+  isSelected = false,
+  hasConflict = false,
 }: ShiftBlockProps) {
   const timeStr = `${formatTimeInTimezone(shift.start_time, timezone)} - ${formatTimeInTimezone(shift.end_time, timezone)}`
   const locationName = shift.location?.name || 'Unknown location'
-  const hasConflict = conflicts.some((c) => c.shift_id === shift.id)
   const conflict = conflicts.find((c) => c.shift_id === shift.id)
 
   // Use role colors if available, otherwise fallback to status colors
@@ -37,38 +44,74 @@ export default function ShiftBlock({
   const displayName = shift.staff?.preferred_name || shift.staff?.first_name || 'Unknown'
 
   return (
-    <button
-      className={`
-        h-full w-full rounded border-2 p-1 text-left text-xs
-        hover:shadow-md transition-shadow cursor-pointer
-        ${useRoleColors ? '' : statusColors[shift.status]}
-        ${hasConflict ? 'border-red-500' : ''}
-      `}
-      style={
-        useRoleColors
-          ? {
-              backgroundColor: bgColor,
-              color: textColor,
-              borderColor: bgColor,
-            }
-          : undefined
-      }
-      onClick={onClick}
-      title={`${displayName} • ${timeStr} • ${locationName}${conflict ? ` • ${conflict.message}` : ''}`}
-    >
-      <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          <div className="font-medium truncate">{displayName}</div>
-          <div className="text-xs opacity-90 truncate">{timeStr}</div>
-          {locationName && (
-            <div className="text-xs opacity-75 truncate">{locationName}</div>
+    <div className="relative h-full w-full group">
+      {/* Resize handles */}
+      {shift.status !== 'cancelled' && (
+        <>
+          <div
+            className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-blue-400 opacity-0 group-hover:opacity-50 transition-opacity z-10"
+            onMouseDown={(e) => {
+              e.stopPropagation()
+              onResizeStart?.(e, 'left')
+            }}
+            title="Resize start time"
+          />
+          <div
+            className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-blue-400 opacity-0 group-hover:opacity-50 transition-opacity z-10"
+            onMouseDown={(e) => {
+              e.stopPropagation()
+              onResizeStart?.(e, 'right')
+            }}
+            title="Resize end time"
+          />
+        </>
+      )}
+
+      {/* Main shift block */}
+      <button
+        className={`
+          h-full w-full rounded border-2 p-1 text-left text-xs
+          hover:shadow-md transition-all cursor-move
+          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
+          ${!useRoleColors ? statusColors[shift.status] : ''}
+          ${shift.status === 'cancelled' ? 'cursor-not-allowed opacity-60' : ''}
+          ${isSelected ? 'ring-2 ring-blue-500 ring-offset-1 shadow-lg' : ''}
+          ${hasConflict ? 'border-red-500' : ''}
+        `}
+        style={
+          useRoleColors
+            ? {
+                backgroundColor: bgColor,
+                color: textColor,
+                borderColor: hasConflict ? '#ef4444' : bgColor,
+              }
+            : undefined
+        }
+        onClick={onClick}
+        onMouseDown={(e) => {
+          if (shift.status !== 'cancelled' && !e.defaultPrevented) {
+            onDragStart?.(e)
+          }
+        }}
+        disabled={shift.status === 'cancelled'}
+        title={`${displayName} • ${timeStr} • ${locationName}${conflict ? ` • ${conflict.message}` : ''}`}
+        aria-label={`${displayName} shift ${timeStr} at ${locationName}${conflict ? ` - ${conflict.message}` : ''}`}
+      >
+        <div className="flex items-start justify-between h-full">
+          <div className="flex-1 min-w-0 flex flex-col justify-between h-full">
+            <div>
+              <div className="font-medium truncate">{displayName}</div>
+              <div className="text-xs opacity-90 truncate">{timeStr}</div>
+            </div>
+            {locationName && (
+              <div className="text-xs opacity-75 truncate mt-auto">{locationName}</div>
+            )}
+          </div>
+          {hasConflict && (
+            <ExclamationTriangleIcon className="h-4 w-4 text-red-500 flex-shrink-0 ml-1" />
           )}
         </div>
-        {hasConflict && (
-          <ExclamationTriangleIcon className="h-4 w-4 text-red-500 flex-shrink-0 ml-1" />
-        )}
-      </div>
-    </button>
+      </button>
+    </div>
   )
 }
-
