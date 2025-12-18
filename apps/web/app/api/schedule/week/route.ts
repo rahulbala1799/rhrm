@@ -149,6 +149,13 @@ export async function GET(request: Request) {
     )
   }
 
+  // Transform shifts to flatten relations (Supabase returns relations as arrays)
+  const transformedShifts = (shifts || []).map((shift: any) => ({
+    ...shift,
+    staff: Array.isArray(shift.staff) ? shift.staff[0] || null : shift.staff || null,
+    location: Array.isArray(shift.location) ? shift.location[0] || null : shift.location || null,
+  }))
+
   // Get week end date for response
   const weekEndDate = await getWeekEndDate(weekStartParam)
 
@@ -157,7 +164,7 @@ export async function GET(request: Request) {
   const conflicts: any[] = []
 
   return NextResponse.json({
-    shifts: shifts || [],
+    shifts: transformedShifts,
     weekStart: weekStartParam,
     weekEnd: weekEndDate,
     note: 'weekEnd is inclusive Sunday label in tenant timezone; internal query uses exclusive next-Monday boundary',

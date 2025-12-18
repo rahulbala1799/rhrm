@@ -172,14 +172,27 @@ export async function POST(request: Request) {
     )
   }
 
+  // Transform response to flatten relations (Supabase returns relations as arrays)
+  const staff = Array.isArray(shift.staff) ? shift.staff[0] : shift.staff
+  const location = Array.isArray(shift.location) ? shift.location[0] : shift.location
+  
+  const transformedShift = {
+    ...shift,
+    staff: staff || null,
+    location: location || null,
+  }
+
   // Create audit log
   const isPostStart = await isShiftStartedOrEnded(start_time, end_time)
+  const staffName = staff 
+    ? `${staff.first_name} ${staff.last_name}`
+    : 'staff member'
   await createShiftAuditLog({
     shiftId: shift.id,
     actionType: 'created',
     beforeSnapshot: null,
-    afterSnapshot: shift,
-    message: `Created shift for ${shift.staff?.first_name} ${shift.staff?.last_name} from ${new Date(start_time).toLocaleString()} to ${new Date(end_time).toLocaleString()}`,
+    afterSnapshot: transformedShift,
+    message: `Created shift for ${staffName} from ${new Date(start_time).toLocaleString()} to ${new Date(end_time).toLocaleString()}`,
     isPostStartEdit: isPostStart,
   })
 
@@ -188,7 +201,7 @@ export async function POST(request: Request) {
   const conflicts: any[] = []
 
   return NextResponse.json({
-    ...shift,
+    ...transformedShift,
     conflicts,
   })
 }

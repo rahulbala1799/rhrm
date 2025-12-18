@@ -270,6 +270,16 @@ export async function PUT(
     actionType = 'notes_changed'
   }
 
+  // Transform response to flatten relations (Supabase returns relations as arrays)
+  const staff = Array.isArray(updatedShift.staff) ? updatedShift.staff[0] : updatedShift.staff
+  const location = Array.isArray(updatedShift.location) ? updatedShift.location[0] : updatedShift.location
+  
+  const transformedShift = {
+    ...updatedShift,
+    staff: staff || null,
+    location: location || null,
+  }
+
   // Create audit log
   const isPostStart = await isShiftStartedOrEnded(
     updatedShift.start_time,
@@ -282,7 +292,7 @@ export async function PUT(
     shiftId: updatedShift.id,
     actionType,
     beforeSnapshot: existingShift,
-    afterSnapshot: updatedShift,
+    afterSnapshot: transformedShift,
     message,
     isPostStartEdit: isPostStart,
   })
@@ -291,7 +301,7 @@ export async function PUT(
   const conflicts: any[] = []
 
   return NextResponse.json({
-    ...updatedShift,
+    ...transformedShift,
     conflicts,
   })
 }
