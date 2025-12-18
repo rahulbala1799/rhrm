@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { getTenantContext } from '@/lib/auth/get-tenant-context'
 import { NextResponse } from 'next/server'
-import { getTenantCurrency, SupportedCurrency } from '@/lib/currency/utils'
+import { getTenantCurrency } from '@/lib/currency/utils'
+import { SupportedCurrency } from '@/lib/currency/types'
 
 /**
  * GET /api/settings/currency

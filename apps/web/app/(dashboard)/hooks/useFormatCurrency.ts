@@ -2,7 +2,7 @@
 
 import { useCurrency } from './useCurrency'
 import { formatCurrency as formatCurrencyUtil, getCurrencySymbol } from '../schedule/week/utils/currency-formatting'
-import { SupportedCurrency } from '@/lib/currency/utils'
+import { SupportedCurrency } from '@/lib/currency/types'
 
 export function useFormatCurrency() {
   const { currency } = useCurrency()

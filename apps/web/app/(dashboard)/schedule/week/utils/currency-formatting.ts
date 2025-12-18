@@ -1,4 +1,4 @@
-import { SupportedCurrency, CURRENCY_CONFIGS } from '@/lib/currency/utils'
+import { SupportedCurrency, CURRENCY_CONFIGS } from '@/lib/currency/types'
 
 /**
  * Format amount as currency using tenant's currency setting

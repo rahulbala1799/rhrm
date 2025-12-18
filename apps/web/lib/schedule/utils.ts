@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { getTenantContext } from '@/lib/auth/get-tenant-context'
-import { SupportedCurrency } from '@/lib/currency/utils'
+import { SupportedCurrency } from '@/lib/currency/types'
 
 export interface TenantSettings {
   timezone: string

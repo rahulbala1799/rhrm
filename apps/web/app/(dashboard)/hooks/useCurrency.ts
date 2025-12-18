@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { SupportedCurrency } from '@/lib/currency/utils'
+import { SupportedCurrency } from '@/lib/currency/types'
 
 export function useCurrency() {
   const [currency, setCurrency] = useState<SupportedCurrency>('USD')
