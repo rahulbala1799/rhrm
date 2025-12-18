@@ -220,13 +220,24 @@ export async function POST(request: Request) {
         .single()
 
       if (staffError) {
+        console.error('Error creating staff record:', staffError)
+        console.error('Staff error details:', JSON.stringify({
+          code: staffError.code,
+          message: staffError.message,
+          details: staffError.details,
+          hint: staffError.hint,
+          tenant_id: invitation.tenant_id,
+          user_id: user.id,
+          email: profile?.email || user.email,
+        }, null, 2))
+        
         // If employee number conflict, try again with different number
         if (staffError.code === '23505') {
           const retryTimestamp = Date.now().toString().slice(-6)
           const retryRandom = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
           const retryEmployeeNumber = `EMP${retryTimestamp}${retryRandom}`
 
-          const { error: retryError } = await serviceClient
+          const { data: retryStaff, error: retryError } = await serviceClient
             .from('staff')
             .insert({
               tenant_id: invitation.tenant_id,
@@ -238,17 +249,30 @@ export async function POST(request: Request) {
               phone: profile?.phone || null,
               status: 'active',
             })
+            .select('id, employee_number')
+            .single()
 
           if (retryError) {
             console.error('Error creating staff record (retry):', retryError)
+            console.error('Retry error details:', JSON.stringify({
+              code: retryError.code,
+              message: retryError.message,
+              details: retryError.details,
+              hint: retryError.hint,
+            }, null, 2))
             // Don't fail the invitation acceptance if staff record creation fails
             // Staff can complete onboarding later to create the record
+            // Or admin can use /api/staff/fix-missing-records to create it
+          } else {
+            console.log('Successfully created staff record on retry:', retryStaff)
           }
         } else {
-          console.error('Error creating staff record:', staffError)
           // Don't fail the invitation acceptance if staff record creation fails
           // Staff can complete onboarding later to create the record
+          // Or admin can use /api/staff/fix-missing-records to create it
         }
+      } else {
+        console.log('Successfully created staff record:', staff)
       }
     }
   }
