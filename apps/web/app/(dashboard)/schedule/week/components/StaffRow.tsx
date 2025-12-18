@@ -73,12 +73,13 @@ export default function StaffRow({
     return { dayIndex: i, dayDate }
   })
 
-  // Calculate row total for budget view (with overtime if available)
+  // Calculate row total for budget view (with rate history and overtime if available)
   const allStaffShifts = Array.from(shiftsByDay.values()).flat()
   const rowTotal = useMemo(() => {
     if (!budgetViewActive) return 0
     
-    // Use overtime costs if available
+    // Use costs from useOvertimeCalculations hook (includes rate history resolution)
+    // This ensures salary increases are reflected in calculations
     if (overtimeShiftCosts.size > 0) {
       return allStaffShifts.reduce((sum, shift) => {
         const cost = overtimeShiftCosts.get(shift.id)
@@ -86,7 +87,8 @@ export default function StaffRow({
       }, 0)
     }
     
-    // Fallback to basic calculation
+    // Fallback to basic calculation (only used if hook doesn't provide costs)
+    // Note: This fallback uses current hourly_rate, not rate history
     return calculateRowTotal(allStaffShifts, staffHourlyRate)
   }, [budgetViewActive, allStaffShifts, overtimeShiftCosts, staffHourlyRate])
 

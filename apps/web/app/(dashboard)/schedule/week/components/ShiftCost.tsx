@@ -65,7 +65,9 @@ export default function ShiftCost({
     )
   }
 
-  // Fallback to basic calculation
+  // Fallback to basic calculation using current rate
+  // Note: This fallback is only used when overtime calculations are not active
+  // When budget view is active, useOvertimeCalculations should provide costs with rate history
   const cost = calculateShiftCost(
     shift.start_time,
     shift.end_time,

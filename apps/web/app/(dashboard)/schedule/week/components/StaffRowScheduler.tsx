@@ -94,8 +94,9 @@ export default function StaffRowScheduler({
     })
   }, [weekStart])
 
-  // Calculate overtime costs if budget view is active
-  const { shiftCosts: overtimeShiftCosts } = useOvertimeCalculations({
+  // Calculate costs using rate history (for salary increases) and overtime if budget view is active
+  // This hook fetches rate history and calculates costs per shift using the rate effective on that shift's date
+  const { shiftCosts: overtimeShiftCosts, rateHistory } = useOvertimeCalculations({
     shifts,
     staffList,
     staffOvertimeConfigs,

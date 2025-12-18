@@ -9,6 +9,7 @@ import {
   calculateCumulativeHours,
   calculateShiftCostWithOvertime,
 } from '../utils/overtime-calculations'
+import { calculateShiftHours } from '../utils/budget-calculations'
 import { getCurrentPayPeriod, PayPeriodConfig } from '@/lib/pay-period/utils'
 import { toZonedTime } from 'date-fns-tz'
 
@@ -83,12 +84,15 @@ export function useOvertimeCalculations({
     fetchRateHistory()
   }, [budgetViewActive, shifts, staffList])
 
-  // Calculate overtime costs
+  // Calculate costs using rate history (for salary increases) and overtime if configured
   useEffect(() => {
-    if (!budgetViewActive || shifts.length === 0 || !payPeriodConfig) {
+    if (!budgetViewActive || shifts.length === 0) {
       setShiftCosts(new Map())
       return
     }
+
+    // If payPeriodConfig is missing, we can still calculate regular costs using rate history
+    // Only overtime calculations require payPeriodConfig
 
     setIsCalculating(true)
 
@@ -108,18 +112,26 @@ export function useOvertimeCalculations({
       shiftsByStaff.forEach((staffShifts, staffId) => {
         const config = staffOvertimeConfigs.get(staffId)
         if (!config) {
-          // No config - calculate as regular hours only
+          // No overtime config - calculate regular costs using rate history
           staffShifts.forEach(shift => {
             const staffRates = rateHistory.get(staffId) || []
             const shiftDate = toZonedTime(new Date(shift.start_time), timezone)
             const resolvedRate = findRateForDate(staffRates, shiftDate)
             
+            // Calculate regular cost using resolved rate from history
+            const shiftHours = calculateShiftHours(
+              shift.start_time,
+              shift.end_time,
+              shift.break_duration_minutes
+            )
+            const regularCost = resolvedRate ? shiftHours * resolvedRate : 0
+            
             costs.set(shift.id, {
-              regularHours: 0,
+              regularHours: shiftHours,
               overtimeHours: 0,
-              regularCost: 0,
+              regularCost,
               overtimeCost: 0,
-              totalCost: 0,
+              totalCost: regularCost,
               hasOvertime: false,
               resolvedHourlyRate: resolvedRate
             })
@@ -136,18 +148,26 @@ export function useOvertimeCalculations({
           payCycleEnd = getPayCycleEnd(payCycleStart, config.payFrequency, timezone)
         } catch (error) {
           // Pay cycle calculation failed (e.g., missing first_period_start for fortnightly)
-          // Calculate as regular hours only
+          // Calculate as regular hours only using rate history
           staffShifts.forEach(shift => {
             const staffRates = rateHistory.get(staffId) || []
             const shiftDate = toZonedTime(new Date(shift.start_time), timezone)
             const resolvedRate = findRateForDate(staffRates, shiftDate)
             
+            // Calculate regular cost using resolved rate from history
+            const shiftHours = calculateShiftHours(
+              shift.start_time,
+              shift.end_time,
+              shift.break_duration_minutes
+            )
+            const regularCost = resolvedRate ? shiftHours * resolvedRate : 0
+            
             costs.set(shift.id, {
-              regularHours: 0,
+              regularHours: shiftHours,
               overtimeHours: 0,
-              regularCost: 0,
+              regularCost,
               overtimeCost: 0,
-              totalCost: 0,
+              totalCost: regularCost,
               hasOvertime: false,
               resolvedHourlyRate: resolvedRate
             })
