@@ -190,7 +190,7 @@ export function useOptimisticShifts(
       if (tenantId) {
         const key = getWeekCacheKey(tenantId, weekStart, cacheFilters)
         // Silent refetch - doesn't clear optimistic state
-        mutate(key, undefined, { revalidate: true }).then((newData) => {
+        mutate(key, undefined, { revalidate: true }).then((newData: any) => {
           // After refetch completes, check if real shift is in the new data
           if (newData?.shifts?.some((s: Shift) => s.id === realShift.id)) {
             // Real shift is now in cache, safe to remove optimistic
@@ -262,7 +262,7 @@ export function useOptimisticShifts(
       if (tenantId) {
         const key = getWeekCacheKey(tenantId, weekStart, cacheFilters)
         // Silent refetch - doesn't clear optimistic state
-        mutate(key, undefined, { revalidate: true }).then((newData) => {
+        mutate(key, undefined, { revalidate: true }).then((newData: any) => {
           // After refetch completes, check if real shift is in the new data
           // Only remove optimistic if real shift is confirmed in cache
           if (newData?.shifts?.some((s: Shift) => s.id === shiftId)) {

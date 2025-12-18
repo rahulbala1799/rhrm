@@ -147,7 +147,7 @@ export function useOptimisticDayShifts(
       // Only remove when refetch confirms real shift is in cache
       if (tenantId) {
         const key = getDayCacheKey(tenantId, date, cacheFilters)
-        mutate(key, undefined, { revalidate: true }).then((newData) => {
+        mutate(key, undefined, { revalidate: true }).then((newData: any) => {
           // After refetch completes, check if real shift is in the new data
           if (newData?.shifts?.some((s: Shift) => s.id === shiftId)) {
             // Real shift is now in cache, safe to remove optimistic
@@ -222,7 +222,7 @@ export function useOptimisticDayShifts(
       // CRITICAL: Refetch in background but keep optimistic shift visible
       if (tenantId) {
         const key = getDayCacheKey(tenantId, date, cacheFilters)
-        mutate(key, undefined, { revalidate: true }).then((newData) => {
+        mutate(key, undefined, { revalidate: true }).then((newData: any) => {
           // After refetch completes, check if real shift is in the new data
           if (newData?.shifts?.some((s: Shift) => s.id === realShift.id)) {
             // Real shift is now in cache, safe to remove optimistic
