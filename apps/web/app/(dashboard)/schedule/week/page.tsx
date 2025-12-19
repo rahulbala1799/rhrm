@@ -268,7 +268,7 @@ export default function WeekPlannerPage() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [selectedShiftIds, deleteShift])
 
-  const handleShiftDrop = async (
+  const handleShiftDrop = useCallback(async (
     shiftId: string,
     targetStaffId: string,
     targetDayIndex: number,
