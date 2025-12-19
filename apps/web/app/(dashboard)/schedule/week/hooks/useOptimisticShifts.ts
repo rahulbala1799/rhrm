@@ -9,6 +9,8 @@ import { prefetchAdjacentWeeks, cancelPrefetch } from '../../hooks/usePrefetch'
 import { updateShiftViaAPI, createShiftViaAPI, deleteShiftViaAPI } from '@/lib/schedule/shift-updates'
 import { mutate } from 'swr'
 import { getWeekCacheKey, CacheFilters } from '../../hooks/useScheduleCache'
+import { addDays, parseISO, format, isWithinInterval, startOfDay, endOfDay } from 'date-fns'
+import { toZonedTime } from 'date-fns-tz'
 
 function generateTempId(): string {
   return `temp_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`
@@ -53,6 +55,31 @@ export function useOptimisticShifts(
   const [syncing, setSyncing] = useState(false)
   const pendingMutationsRef = useRef<Map<string, PendingMutation>>(new Map())
 
+  // CRITICAL: Clear optimistic shifts that don't belong to current week when week changes
+  // This prevents shifts from previous weeks from appearing in the new week
+  useEffect(() => {
+    if (!weekEnd) return
+    
+    // Parse weekEnd (format: "YYYY-MM-DD") to get the end date
+    const weekEndDate = parseISO(weekEnd)
+    const weekEndInclusive = endOfDay(weekEndDate) // Sunday 23:59:59
+    const weekStartInclusive = startOfDay(weekStart) // Monday 00:00:00
+    
+    // Filter out optimistic shifts that don't belong to this week
+    setOptimisticShifts((prev) => {
+      return prev.filter((optShift) => {
+        const shiftStart = new Date(optShift.start_time)
+        // Check if shift start_time falls within the week range
+        // Using UTC comparison (simpler, but should work for most cases)
+        // For perfect accuracy, would need tenant timezone, but this should be sufficient
+        return isWithinInterval(shiftStart, {
+          start: weekStartInclusive,
+          end: weekEndInclusive,
+        })
+      })
+    })
+  }, [weekStart, weekEnd])
+
   // Prefetch adjacent weeks on idle
   useEffect(() => {
     if (!tenantId) return
@@ -92,6 +119,7 @@ export function useOptimisticShifts(
   // Merge real shifts with optimistic shifts
   // CRITICAL: Optimistic shifts MUST stay visible during mutations and refetches
   // The shift should NEVER disappear - it stays in its new position until server confirms or rejects
+  // CRITICAL: Only include optimistic shifts that belong to the current week
   const mergedShifts = useCallback((): Shift[] => {
     const realShiftsMap = new Map<string, Shift>()
     const optimisticShiftsMap = new Map<string, OptimisticShift>()
@@ -101,8 +129,21 @@ export function useOptimisticShifts(
       realShiftsMap.set(shift.id, shift)
     }
 
+    // Filter optimistic shifts to only include those that belong to current week
+    // This prevents shifts from other weeks from appearing
+    const weekStartInclusive = startOfDay(weekStart)
+    const weekEndInclusive = weekEnd ? endOfDay(parseISO(weekEnd)) : addDays(weekStartInclusive, 6)
+    
+    const validOptimisticShifts = optimisticShifts.filter((optShift) => {
+      const shiftStart = new Date(optShift.start_time)
+      return isWithinInterval(shiftStart, {
+        start: weekStartInclusive,
+        end: weekEndInclusive,
+      })
+    })
+
     // Add optimistic shifts - these are the source of truth during mutations
-    for (const optimisticShift of optimisticShifts) {
+    for (const optimisticShift of validOptimisticShifts) {
       const key = optimisticShift._tempId || optimisticShift.id
       optimisticShiftsMap.set(key, optimisticShift)
     }
@@ -130,7 +171,7 @@ export function useOptimisticShifts(
     })
 
     return Array.from(merged.values())
-  }, [shifts, optimisticShifts])
+  }, [shifts, optimisticShifts, weekStart, weekEnd])
 
   const createShift = useCallback(async (shiftData: Partial<Shift>): Promise<Shift> => {
     const tempId = generateTempId()

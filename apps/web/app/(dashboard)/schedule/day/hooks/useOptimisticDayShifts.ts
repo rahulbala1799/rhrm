@@ -8,6 +8,7 @@ import { prefetchAdjacentDays, cancelPrefetch } from '../../hooks/usePrefetch'
 import { updateShiftViaAPI, createShiftViaAPI, deleteShiftViaAPI } from '@/lib/schedule/shift-updates'
 import { mutate } from 'swr'
 import { getDayCacheKey, CacheFilters } from '../../hooks/useScheduleCache'
+import { format, isSameDay, startOfDay, endOfDay } from 'date-fns'
 
 interface OptimisticShift extends Shift {
   _tempId?: string
@@ -48,6 +49,22 @@ export function useOptimisticDayShifts(
   const [syncing, setSyncing] = useState(false)
   const pendingMutationsRef = useRef<Map<string, PendingMutation>>(new Map())
 
+  // CRITICAL: Clear optimistic shifts that don't belong to current date when date changes
+  // This prevents shifts from other days from appearing when navigating
+  useEffect(() => {
+    const currentDateStart = startOfDay(date)
+    const currentDateEnd = endOfDay(date)
+    
+    // Filter out optimistic shifts that don't belong to this date
+    setOptimisticShifts((prev) => {
+      return prev.filter((optShift) => {
+        const shiftStart = new Date(optShift.start_time)
+        // Check if shift start_time falls on the current date
+        return isSameDay(shiftStart, date)
+      })
+    })
+  }, [date])
+
   // Prefetch adjacent days on idle
   useEffect(() => {
     if (!tenantId) return
@@ -87,18 +104,26 @@ export function useOptimisticDayShifts(
   // Merge base shifts with optimistic updates
   // CRITICAL: Optimistic shifts MUST stay visible during mutations and refetches
   // The shift should NEVER disappear - it stays in its new position until server confirms or rejects
+  // CRITICAL: Only include optimistic shifts that belong to the current date
   const shifts = useMemo(() => {
     const baseMap = new Map(baseShifts.map(s => [s.id, s]))
     
+    // Filter optimistic shifts to only include those that belong to current date
+    // This prevents shifts from other days from appearing
+    const validOptimisticShifts = optimisticShifts.filter((optShift) => {
+      const shiftStart = new Date(optShift.start_time)
+      return isSameDay(shiftStart, date)
+    })
+    
     // CRITICAL: Add optimistic shifts - these ALWAYS take precedence
     // They stay visible even during refetch until server confirms
-    optimisticShifts.forEach(opt => {
+    validOptimisticShifts.forEach(opt => {
       // Optimistic shifts always overwrite real shifts (shows new position)
       baseMap.set(opt.id, opt)
     })
     
     return Array.from(baseMap.values())
-  }, [baseShifts, optimisticShifts])
+  }, [baseShifts, optimisticShifts, date])
 
   const updateShift = useCallback(async (shiftId: string, updates: Partial<Shift>): Promise<Shift> => {
     const existingShift = shifts.find(s => s.id === shiftId)
