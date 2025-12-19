@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { startOfWeek, addWeeks, subWeeks, addDays, format } from 'date-fns'
 import PageHeader from '@/components/ui/PageHeader'
 import WeekPlannerHeader from './components/WeekPlannerHeader'
@@ -16,6 +16,9 @@ import { useOptimisticShifts } from './hooks/useOptimisticShifts'
 import { useBudgetViewToggle } from './hooks/useBudgetViewToggle'
 import { useOvertimeCalculations } from './hooks/useOvertimeCalculations'
 import { applyTimeToDate, toTenantTimezone } from '@/lib/schedule/timezone-utils'
+import { canDropShift } from '@/lib/schedule/role-validation'
+import { useStaffRoles } from '../hooks/useStaffRoles'
+import { useJobRoles } from '../hooks/useJobRoles'
 import { CloudArrowUpIcon, LockClosedIcon } from '@heroicons/react/24/outline'
 import BudgetViewErrorBoundary from './components/BudgetViewErrorBoundary'
 import { useOfflineDetection } from '../hooks/useOfflineDetection'
@@ -69,6 +72,11 @@ export default function WeekPlannerPage() {
   // Budget view toggle
   const [budgetViewActive, setBudgetViewActive] = useBudgetViewToggle()
   const canViewBudget = userRole === 'admin' || userRole === 'manager' || userRole === 'superadmin'
+
+  // Fetch staff roles and job roles for role validation
+  const staffIds = useMemo(() => staffList.map(s => s.id), [staffList])
+  const { staffRolesMap, ensureRolesForStaff } = useStaffRoles(staffIds)
+  const { jobRolesMap } = useJobRoles()
   
   // Use optimistic shifts hook
   const {
@@ -273,6 +281,41 @@ export default function WeekPlannerPage() {
         return
       }
 
+      // Authoritative role validation on drop
+      const needsRoleCheck = targetStaffId !== originalShift.staff_id
+      if (needsRoleCheck) {
+        // Ensure we have fresh target staff roles
+        const targetStaffRoles = await ensureRolesForStaff(targetStaffId)
+        const roleExists = originalShift.role_id ? jobRolesMap.has(originalShift.role_id) : undefined
+        
+        const roleValidation = canDropShift({
+          shiftRoleId: originalShift.role_id || null,
+          sourceStaffId: originalShift.staff_id,
+          targetStaffId: targetStaffId,
+          targetStaffRoleIds: targetStaffRoles,
+          roleExists: originalShift.role_id ? roleExists : undefined
+        })
+
+        if (!roleValidation.allowed) {
+          // Block drop - show error toast and prevent mutation
+          const roleName = originalShift.role_id ? (jobRolesMap.get(originalShift.role_id)?.name || 'Unknown Role') : 'Unknown Role'
+          const targetStaff = staffList.find(s => s.id === targetStaffId)
+          const staffName = targetStaff?.preferred_name || targetStaff?.first_name || targetStaff?.last_name || 'Staff'
+          
+          if (roleValidation.reason === 'ROLE_MISMATCH') {
+            setToast({ message: `Cannot move shift: ${staffName} doesn't have ${roleName} role`, type: 'error' })
+          } else if (roleValidation.reason === 'NO_ROLES') {
+            setToast({ message: 'Cannot assign shift with role to staff member who has no roles assigned', type: 'error' })
+          }
+          return // Prevent drop
+        }
+
+        // If MISSING_ROLE, show warning toast after successful drop
+        if (roleValidation.reason === 'MISSING_ROLE') {
+          // Will show toast after successful update
+        }
+      }
+
       // Preserve clock times in tenant timezone
       const originalStartLocal = toTenantTimezone(originalShift.start_time, timezone)
       const originalEndLocal = toTenantTimezone(originalShift.end_time, timezone)
@@ -302,6 +345,14 @@ export default function WeekPlannerPage() {
         start_time: normalizedStart,
         end_time: normalizedEnd,
       })
+
+      // Check for missing role and show warning toast
+      if (needsRoleCheck && originalShift.role_id && !jobRolesMap.has(originalShift.role_id)) {
+        setToast({ 
+          message: 'Shift has a role that no longer exists. Role restriction removed.', 
+          type: 'warning' 
+        })
+      }
 
       // Add undo action
       addUndoAction({
@@ -344,7 +395,7 @@ export default function WeekPlannerPage() {
         setToast({ message: error.message, type: 'error' })
       }
     }
-  }
+  }, [shifts, timezone, updateShift, addUndoAction, staffList, staffRolesMap, jobRolesMap, ensureRolesForStaff])
 
   const handleSaveShift = async (formData: ShiftFormData) => {
     try {

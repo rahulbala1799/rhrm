@@ -8,6 +8,9 @@ import ShiftContextMenu from './ShiftContextMenu'
 import { applyTimeToDate } from '@/lib/schedule/timezone-utils'
 import { normalizeTimeForCommit } from '@/lib/schedule/shift-updates'
 import { DragController } from '../utils/dragController'
+import { canDropShift } from '@/lib/schedule/role-validation'
+import { useStaffRoles } from '../../hooks/useStaffRoles'
+import { useJobRoles } from '../../hooks/useJobRoles'
 import './shift-animations.css'
 
 interface DailyCanvasProps {
@@ -118,7 +121,14 @@ export default function DailyCanvas({
     reason?: string
     snapLine?: number
     snapTimeLabel?: string
+    roleReason?: 'ROLE_MISMATCH' | 'NO_ROLES' | 'MISSING_ROLE'
+    roleTooltip?: string
   } | null>(null)
+
+  // Fetch staff roles and job roles
+  const staffIds = useMemo(() => staffList.map(s => s.id), [staffList])
+  const { staffRolesMap, ensureRolesForStaff } = useStaffRoles(staffIds)
+  const { jobRolesMap } = useJobRoles()
 
   // Group shifts by staff
   const shiftsByStaff = useMemo(() => {
@@ -368,6 +378,46 @@ export default function DailyCanvas({
             const finalStaffId = canChangeStaff ? targetStaff.id : dragState.originalStaffId
             const overlap = checkOverlap(finalStaffId, snappedStart, snappedEnd, dragState.shiftId)
 
+            // CRITICAL: Only validate role if staff_id changes
+            const needsRoleCheck = finalStaffId !== dragState.originalStaffId
+            let isValidRole = true
+            let roleReason: 'ROLE_MISMATCH' | 'NO_ROLES' | 'MISSING_ROLE' | undefined
+            let roleTooltip: string | undefined
+
+            if (needsRoleCheck) {
+              const shift = shifts.find((s: Shift) => s.id === dragState.shiftId)
+              const targetStaffRoles = staffRolesMap.get(finalStaffId) || []
+              const roleExists = shift?.role_id ? jobRolesMap.has(shift.role_id) : undefined
+              
+              const roleValidation = canDropShift({
+                shiftRoleId: shift?.role_id || null,
+                sourceStaffId: dragState.originalStaffId,
+                targetStaffId: finalStaffId,
+                targetStaffRoleIds: targetStaffRoles,
+                roleExists: shift?.role_id ? roleExists : undefined
+              })
+              
+              isValidRole = roleValidation.allowed
+              // Exclude 'SAME_STAFF' from roleReason (we skip validation in that case)
+              roleReason = roleValidation.reason === 'SAME_STAFF' ? undefined : roleValidation.reason
+
+              // Build tooltip message
+              if (roleValidation.reason === 'ROLE_MISMATCH') {
+                const roleName = shift?.role_id ? (jobRolesMap.get(shift.role_id)?.name || 'Unknown Role') : 'Unknown Role'
+                const staffName = targetStaff.preferred_name || targetStaff.first_name || targetStaff.last_name || 'Staff'
+                roleTooltip = `Cannot drop: ${staffName} doesn't have ${roleName} role`
+              } else if (roleValidation.reason === 'NO_ROLES') {
+                const staffName = targetStaff.preferred_name || targetStaff.first_name || targetStaff.last_name || 'Staff'
+                roleTooltip = `Cannot drop: ${staffName} has no roles assigned`
+              } else if (roleValidation.reason === 'MISSING_ROLE') {
+                roleTooltip = 'Role no longer exists'
+              }
+            }
+
+            // Validation priority: Role mismatch first, then overlap
+            const isValid = isValidRole && !overlap.hasOverlap
+            const primaryReason = !isValidRole && roleReason ? roleTooltip : overlap.reason
+
             // Check for snap line
             let snapLine: number | undefined
             let snapTimeLabel: string | undefined
@@ -383,10 +433,12 @@ export default function DailyCanvas({
               staffId: finalStaffId,
               startTime: snappedStart,
               endTime: snappedEnd,
-              isValid: !overlap.hasOverlap,
-              reason: overlap.reason,
+              isValid,
+              reason: primaryReason,
               snapLine,
               snapTimeLabel,
+              roleReason,
+              roleTooltip,
             }
           } else if ('edge' in state) {
             // Resize state
@@ -448,7 +500,7 @@ export default function DailyCanvas({
       )
     }
 
-    const handleMouseUp = () => {
+    const handleMouseUp = async () => {
       const result = dragControllerRef.current.endDrag()
       if (!result || !dragPreview) return
 
@@ -461,20 +513,71 @@ export default function DailyCanvas({
       } else if (result.type === 'create') {
         setInvalidDropMessage(dragPreview.reason || 'Cannot create shift')
         setTimeout(() => setInvalidDropMessage(null), 800)
-      } else if (result.type === 'drag' && dragPreview.isValid) {
-        // CRITICAL: Normalize time before commit
-        const normalizedStart = normalizeTimeForCommit(dragPreview.startTime, timezone, MINUTES_PER_SLOT)
-        const normalizedEnd = normalizeTimeForCommit(dragPreview.endTime, timezone, MINUTES_PER_SLOT)
-        onShiftMove?.(result.state.shiftId, dragPreview.staffId, new Date(normalizedStart), new Date(normalizedEnd))
-        // Settle animation
-        setSettlingShiftId(result.state.shiftId)
-        setTimeout(() => setSettlingShiftId(null), 150)
       } else if (result.type === 'drag') {
-        // Conflict rollback - shake animation
-        setConflictShiftId(result.state.shiftId)
-        setTimeout(() => setConflictShiftId(null), 300)
-        setInvalidDropMessage(dragPreview.reason || 'Cannot move shift')
-        setTimeout(() => setInvalidDropMessage(null), 800)
+        // Authoritative role validation on drop
+        const shift = shifts.find((s: Shift) => s.id === result.state.shiftId)
+        const needsRoleCheck = dragPreview.staffId !== result.state.originalStaffId
+        
+        let roleValidationPassed = true
+        let roleValidationResult: { allowed: boolean; reason?: 'ROLE_MISMATCH' | 'NO_ROLES' | 'MISSING_ROLE' } | null = null
+
+        if (needsRoleCheck && shift) {
+          // Ensure we have fresh target staff roles
+          const targetStaffRoles = await ensureRolesForStaff(dragPreview.staffId)
+          const roleExists = shift.role_id ? jobRolesMap.has(shift.role_id) : undefined
+          
+          const validation = canDropShift({
+            shiftRoleId: shift.role_id || null,
+            sourceStaffId: result.state.originalStaffId,
+            targetStaffId: dragPreview.staffId,
+            targetStaffRoleIds: targetStaffRoles,
+            roleExists: shift.role_id ? roleExists : undefined
+          })
+          
+          roleValidationResult = {
+            allowed: validation.allowed,
+            reason: validation.reason === 'SAME_STAFF' ? undefined : validation.reason
+          }
+          roleValidationPassed = validation.allowed
+        }
+
+        if (dragPreview.isValid && roleValidationPassed) {
+          // CRITICAL: Normalize time before commit
+          const normalizedStart = normalizeTimeForCommit(dragPreview.startTime, timezone, MINUTES_PER_SLOT)
+          const normalizedEnd = normalizeTimeForCommit(dragPreview.endTime, timezone, MINUTES_PER_SLOT)
+          
+          // If MISSING_ROLE, show warning toast after drop
+          if (roleValidationResult?.reason === 'MISSING_ROLE') {
+            // We'll show toast in the parent component after successful move
+            // For now, proceed with the move
+          }
+          
+          onShiftMove?.(result.state.shiftId, dragPreview.staffId, new Date(normalizedStart), new Date(normalizedEnd))
+          // Settle animation
+          setSettlingShiftId(result.state.shiftId)
+          setTimeout(() => setSettlingShiftId(null), 150)
+        } else {
+          // Conflict rollback - shake animation
+          setConflictShiftId(result.state.shiftId)
+          setTimeout(() => setConflictShiftId(null), 300)
+          
+          // Show appropriate error message
+          if (!roleValidationPassed && roleValidationResult) {
+            const shift = shifts.find((s: Shift) => s.id === result.state.shiftId)
+            const roleName = shift?.role_id ? (jobRolesMap.get(shift.role_id)?.name || 'Unknown Role') : 'Unknown Role'
+            const targetStaff = sortedStaff.find(s => s.id === dragPreview.staffId)
+            const staffName = targetStaff?.preferred_name || targetStaff?.first_name || targetStaff?.last_name || 'Staff'
+            
+            if (roleValidationResult.reason === 'ROLE_MISMATCH') {
+              setInvalidDropMessage(`Cannot move shift: ${staffName} doesn't have ${roleName} role`)
+            } else if (roleValidationResult.reason === 'NO_ROLES') {
+              setInvalidDropMessage(`Cannot assign shift with role to staff member who has no roles assigned`)
+            }
+          } else {
+            setInvalidDropMessage(dragPreview.reason || 'Cannot move shift')
+          }
+          setTimeout(() => setInvalidDropMessage(null), 800)
+        }
       } else if (result.type === 'resize' && dragPreview.isValid) {
         // CRITICAL: Normalize time before commit
         const normalizedStart = normalizeTimeForCommit(dragPreview.startTime, timezone, MINUTES_PER_SLOT)
@@ -517,7 +620,7 @@ export default function DailyCanvas({
       window.removeEventListener('mouseup', handleMouseUp)
       window.removeEventListener('keydown', handleEscape)
     }
-  }, [isCreating, isDragging, isResizing, dragPreview, pixelToTime, snapTime, timezone, date, checkOverlap, shifts, onShiftCreate, onShiftMove, onShiftResize, sortedStaff, snapEnabled, timeToPixel, shiftsByStaff])
+  }, [isCreating, isDragging, isResizing, dragPreview, pixelToTime, snapTime, timezone, date, checkOverlap, shifts, onShiftCreate, onShiftMove, onShiftResize, sortedStaff, snapEnabled, timeToPixel, shiftsByStaff, staffRolesMap, jobRolesMap, ensureRolesForStaff])
 
   // Handle shift drag start
   const handleShiftDragStart = useCallback((e: React.MouseEvent, shift: Shift) => {
@@ -768,22 +871,41 @@ export default function DailyCanvas({
                           <div
                             className={`h-full rounded border-2 ${
                               dragPreview.isValid
-                                ? 'bg-blue-200/50 border-blue-400 border-dashed'
-                                : 'bg-red-200/50 border-red-400 border-dashed'
+                                ? dragPreview.roleReason === 'MISSING_ROLE'
+                                  ? 'bg-blue-200/50 border-blue-400 border-dashed'
+                                  : 'bg-blue-200/50 border-blue-400 border-dashed'
+                                : dragPreview.roleReason
+                                  ? 'bg-amber-200/50 border-amber-400 border-dashed'
+                                  : 'bg-red-200/50 border-red-400 border-dashed'
                             }`}
                           >
                             {/* Time Tooltip */}
                             <div className={`absolute -top-6 left-0 px-1.5 py-0.5 text-xs rounded whitespace-nowrap ${
                               dragPreview.isValid
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-red-600 text-white'
+                                ? dragPreview.roleReason === 'MISSING_ROLE'
+                                  ? 'bg-yellow-600 text-white'
+                                  : 'bg-blue-600 text-white'
+                                : dragPreview.roleReason
+                                  ? 'bg-amber-600 text-white'
+                                  : 'bg-red-600 text-white'
                             }`}>
                               {format(toZonedTime(dragPreview.startTime, timezone), 'HH:mm')}–{format(toZonedTime(dragPreview.endTime, timezone), 'HH:mm')}
                             </div>
                             {/* Invalid Reason Badge */}
-                            {!dragPreview.isValid && dragPreview.reason && (
+                            {!dragPreview.isValid && dragPreview.roleTooltip && (
+                              <div className="absolute top-1 right-1 px-1.5 py-0.5 text-xs bg-amber-600 text-white rounded">
+                                {dragPreview.roleTooltip}
+                              </div>
+                            )}
+                            {!dragPreview.isValid && !dragPreview.roleReason && dragPreview.reason && (
                               <div className="absolute top-1 right-1 px-1.5 py-0.5 text-xs bg-red-600 text-white rounded">
                                 {dragPreview.reason}
+                              </div>
+                            )}
+                            {/* Missing Role Warning Badge */}
+                            {dragPreview.isValid && dragPreview.roleReason === 'MISSING_ROLE' && (
+                              <div className="absolute top-1 right-1 px-1.5 py-0.5 text-xs bg-yellow-600 text-white rounded">
+                                Role no longer exists
                               </div>
                             )}
                           </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { format, addDays, subDays, startOfDay } from 'date-fns'
 import PageHeader from '@/components/ui/PageHeader'
 import { Shift } from '@/lib/schedule/types'
@@ -15,6 +15,8 @@ import { toUtcIsoInTenantTz } from '@/lib/schedule/shift-updates'
 import { useOfflineDetection } from '../hooks/useOfflineDetection'
 import { useWindowFocusRefetch } from '../hooks/useWindowFocusRefetch'
 import { useUndoRedo } from './hooks/useUndoRedo'
+import { useJobRoles } from '../hooks/useJobRoles'
+import { useStaffRoles } from '../hooks/useStaffRoles'
 
 export default function DayViewPage() {
   const [currentDate, setCurrentDate] = useState(() => startOfDay(new Date()))
@@ -52,6 +54,13 @@ export default function DayViewPage() {
     deleteShift,
     refetch,
   } = useOptimisticDayShifts(currentDate)
+
+  // Get job roles for missing role detection
+  const { jobRolesMap } = useJobRoles()
+  
+  // Get staff roles for role assignment on shift creation
+  const staffIds = useMemo(() => staffList.map(s => s.id), [staffList])
+  const { staffRolesMap } = useStaffRoles(staffIds)
 
   // Window focus refetch (rate-limited)
   useWindowFocusRefetch(refetch)
@@ -122,6 +131,13 @@ export default function DayViewPage() {
         return
       }
 
+      // Auto-assign role if staff has exactly 1 role
+      let roleId: string | null = null
+      const staffRoles = staffRolesMap.get(staffId) || []
+      if (staffRoles.length === 1) {
+        roleId = staffRoles[0]
+      }
+
       // Convert to UTC timestamps using shared helper
       const startTimeUTC = toUtcIsoInTenantTz(startTime, timezone)
       const endTimeUTC = toUtcIsoInTenantTz(endTime, timezone)
@@ -130,6 +146,7 @@ export default function DayViewPage() {
       const newShift = await createShift({
         staff_id: staffId,
         location_id: defaultLocationId,
+        role_id: roleId,
         start_time: startTimeUTC,
         end_time: endTimeUTC,
         status: 'draft',
@@ -170,7 +187,7 @@ export default function DayViewPage() {
         setToast({ message: error.message, type: 'error' })
       }
     }
-  }, [staffList, locationList, timezone, createShift, deleteShift, addUndoAction])
+  }, [staffList, locationList, timezone, createShift, deleteShift, addUndoAction, staffRolesMap])
 
   const handleShiftMove = useCallback(async (shiftId: string, newStaffId: string, newStartTime: Date, newEndTime: Date) => {
     const originalShift = shifts.find(s => s.id === shiftId)
@@ -218,6 +235,14 @@ export default function DayViewPage() {
         },
       })
 
+      // Check for missing role and show warning toast
+      if (originalShift.role_id && !jobRolesMap.has(originalShift.role_id)) {
+        setToast({ 
+          message: 'Shift has a role that no longer exists. Role restriction removed.', 
+          type: 'warning' 
+        })
+      }
+
       // No success toast for implicit actions (drag)
     } catch (err) {
       const error = err as ShiftUpdateError
@@ -229,7 +254,7 @@ export default function DayViewPage() {
         setToast({ message: error.message, type: 'error' })
       }
     }
-  }, [timezone, updateShift, shifts, addUndoAction])
+  }, [timezone, updateShift, shifts, addUndoAction, jobRolesMap])
 
   const handleShiftResize = useCallback(async (shiftId: string, newStartTime: Date, newEndTime: Date) => {
     const originalShift = shifts.find(s => s.id === shiftId)

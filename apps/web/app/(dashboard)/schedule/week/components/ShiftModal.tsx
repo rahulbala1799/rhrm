@@ -52,6 +52,7 @@ export default function ShiftModal({
   const [staffRoles, setStaffRoles] = useState<Array<{ id: string; name: string; description: string | null; bg_color: string; text_color: string }>>([])
   const [staffLocations, setStaffLocations] = useState<Array<{ id: string; name: string }>>([])
   const [loadingStaffData, setLoadingStaffData] = useState(false)
+  const [roleValidationError, setRoleValidationError] = useState<string | null>(null)
 
   // Fetch staff roles and locations when staff_id changes
   useEffect(() => {
@@ -75,8 +76,18 @@ export default function ShiftModal({
         // Auto-select role if only one
         if (roles && roles.length === 1 && !shift) {
           setFormData(prev => ({ ...prev, role_id: roles[0].id }))
+          setRoleValidationError(null)
         } else if (shift && shift.role_id) {
+          // Validate existing shift role
+          const hasRole = roles?.some((r: { id: string }) => r.id === shift.role_id)
+          if (!hasRole && roles && roles.length > 0) {
+            setRoleValidationError(`This staff member doesn't have the selected role`)
+          } else {
+            setRoleValidationError(null)
+          }
           setFormData(prev => ({ ...prev, role_id: shift.role_id }))
+        } else {
+          setRoleValidationError(null)
         }
       }
 
@@ -242,9 +253,27 @@ export default function ShiftModal({
                   </label>
                   <select
                     value={formData.role_id || ''}
-                    onChange={(e) => setFormData({ ...formData, role_id: e.target.value || null })}
+                    onChange={(e) => {
+                      const selectedRoleId = e.target.value || null
+                      // Validate role selection
+                      if (selectedRoleId && staffRoles.length > 0) {
+                        const hasRole = staffRoles.some(r => r.id === selectedRoleId)
+                        if (!hasRole) {
+                          const selectedRole = staffRoles.find(r => r.id === selectedRoleId)
+                          const roleName = selectedRole?.name || 'Unknown Role'
+                          setRoleValidationError(`This staff member doesn't have ${roleName} role`)
+                        } else {
+                          setRoleValidationError(null)
+                        }
+                      } else {
+                        setRoleValidationError(null)
+                      }
+                      setFormData({ ...formData, role_id: selectedRoleId })
+                    }}
                     required={staffRoles.length > 1}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      roleValidationError ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
                   >
                     <option value="">{staffRoles.length === 0 ? 'No roles assigned (optional)' : 'Select role'}</option>
                     {staffRoles.map((role) => (
@@ -253,7 +282,10 @@ export default function ShiftModal({
                       </option>
                     ))}
                   </select>
-                  {staffRoles.length === 0 && (
+                  {roleValidationError && (
+                    <p className="mt-1 text-xs text-red-600">{roleValidationError}</p>
+                  )}
+                  {staffRoles.length === 0 && !roleValidationError && (
                     <p className="mt-1 text-xs text-gray-500">Assign roles to this staff member in their profile</p>
                   )}
                 </div>
@@ -375,7 +407,7 @@ export default function ShiftModal({
                 </button>
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || !!roleValidationError}
                   className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Saving...' : shift ? 'Update' : 'Create'}
