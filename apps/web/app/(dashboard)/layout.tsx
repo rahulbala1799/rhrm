@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/dashboard/Sidebar'
 import StaffSidebar from '@/components/dashboard/StaffSidebar'
 import TopBar from '@/components/dashboard/TopBar'
 import { CurrencyProvider } from './contexts/CurrencyContext'
+import { LocationsProvider, type LocationRecord } from './contexts/LocationsContext'
 
 export default function DashboardLayout({
   children,
@@ -14,17 +14,24 @@ export default function DashboardLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [locations, setLocations] = useState<LocationRecord[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Fetch user role
-    fetch('/api/auth/role')
-      .then(res => res.json())
-      .then(data => {
-        setUserRole(data.role)
+    let cancelled = false
+    Promise.all([
+      fetch('/api/auth/role').then((res) => res.json()).then((data) => data.role),
+      fetch('/api/settings/locations').then((res) => res.json()).then((data) => data.locations || []),
+    ]).then(([roleData, locationsData]) => {
+      if (!cancelled) {
+        setUserRole(roleData)
+        setLocations(locationsData as LocationRecord[])
         setLoading(false)
-      })
-      .catch(() => setLoading(false))
+      }
+    }).catch(() => {
+      if (!cancelled) setLoading(false)
+    })
+    return () => { cancelled = true }
   }, [])
 
   if (loading) {
@@ -39,6 +46,7 @@ export default function DashboardLayout({
 
   return (
     <CurrencyProvider>
+      <LocationsProvider initialLocations={locations}>
       <div className="flex h-screen bg-gray-50">
         <SidebarComponent isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -48,6 +56,7 @@ export default function DashboardLayout({
           </main>
         </div>
       </div>
+      </LocationsProvider>
     </CurrencyProvider>
   )
 }

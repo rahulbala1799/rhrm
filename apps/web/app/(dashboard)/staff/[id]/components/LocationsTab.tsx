@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useLocations } from '@/app/(dashboard)/contexts/LocationsContext'
 
 interface Location {
   id: string
@@ -15,15 +16,14 @@ interface LocationsTabProps {
 }
 
 export default function LocationsTab({ staffId }: LocationsTabProps) {
+  const { locations: allLocations } = useLocations()
   const [locations, setLocations] = useState<Location[]>([])
-  const [allLocations, setAllLocations] = useState<Location[]>([])
   const [loading, setLoading] = useState(true)
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [selectedLocationId, setSelectedLocationId] = useState<string>('')
 
   useEffect(() => {
     fetchStaffLocations()
-    fetchAllLocations()
   }, [staffId])
 
   const fetchStaffLocations = async () => {
@@ -36,18 +36,6 @@ export default function LocationsTab({ staffId }: LocationsTabProps) {
       console.error('Error fetching staff locations:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const fetchAllLocations = async () => {
-    try {
-      const response = await fetch('/api/settings/locations')
-      if (response.ok) {
-        const { locations } = await response.json()
-        setAllLocations(locations || [])
-      }
-    } catch (error) {
-      console.error('Error fetching all locations:', error)
     }
   }
 

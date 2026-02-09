@@ -3,16 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
-
-interface Location {
-  id: string
-  name: string
-}
+import { useLocations } from '@/app/(dashboard)/contexts/LocationsContext'
 
 export default function NewStaffPage() {
   const router = useRouter()
+  const { locations } = useLocations()
   const [loading, setLoading] = useState(false)
-  const [locations, setLocations] = useState<Location[]>([])
   const [formData, setFormData] = useState({
     employee_number: '',
     first_name: '',
@@ -30,23 +26,10 @@ export default function NewStaffPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetchLocations()
     // Generate a random employee number
     const randomNumber = 'EMP' + Math.floor(100000 + Math.random() * 900000)
     setFormData(prev => ({ ...prev, employee_number: randomNumber }))
   }, [])
-
-  const fetchLocations = async () => {
-    try {
-      const response = await fetch('/api/settings/locations')
-      if (response.ok) {
-        const data = await response.json()
-        setLocations(data.locations || [])
-      }
-    } catch (error) {
-      console.error('Error fetching locations:', error)
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

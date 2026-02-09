@@ -17,6 +17,7 @@ import { useWindowFocusRefetch } from '../hooks/useWindowFocusRefetch'
 import { useUndoRedo } from './hooks/useUndoRedo'
 import { useJobRoles } from '../hooks/useJobRoles'
 import { useStaffRoles } from '../hooks/useStaffRoles'
+import { useLocations } from '@/app/(dashboard)/contexts/LocationsContext'
 
 export default function DayViewPage() {
   const [currentDate, setCurrentDate] = useState(() => startOfDay(new Date()))
@@ -33,7 +34,7 @@ export default function DayViewPage() {
     location_id: string | null
     location?: { id: string; name: string } | null
   }>>([])
-  const [locationList, setLocationList] = useState<Array<{ id: string; name: string }>>([])
+  const { locations: locationList } = useLocations()
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
   const [snapEnabled, setSnapEnabled] = useState(true)
   const [selectedShiftIds, setSelectedShiftIds] = useState<string[]>([])
@@ -89,20 +90,7 @@ export default function DayViewPage() {
       }
     }
 
-    const fetchLocations = async () => {
-      try {
-        const response = await fetch('/api/settings/locations')
-        if (response.ok) {
-          const data = await response.json()
-          setLocationList(data.locations || [])
-        }
-      } catch (err) {
-        console.error('Error fetching locations:', err)
-      }
-    }
-
     fetchStaff()
-    fetchLocations()
   }, [])
 
   const handleShiftClick = (shift: Shift) => {
