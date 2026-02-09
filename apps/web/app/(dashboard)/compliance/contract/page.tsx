@@ -1,12 +1,13 @@
+import Link from 'next/link'
 import PageHeader from '@/components/ui/PageHeader'
-import EmptyState from '@/components/ui/EmptyState'
+import { DocumentTextIcon } from '@heroicons/react/24/outline'
 
 export default function ContractPage() {
   return (
     <div>
       <PageHeader
         title="Contract"
-        description="Employee contracts and employee handbook"
+        description="Create and manage staff contracts and employee handbook"
         breadcrumbs={[
           { label: 'Dashboard', href: '/dashboard' },
           { label: 'Compliance', href: '/compliance' },
@@ -14,15 +15,17 @@ export default function ContractPage() {
         ]}
       />
 
-      <EmptyState
-        icon={
-          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-        }
-        title="Contract"
-        description="This section will be used for Employee Contract and Employee Handbook. Content coming soon."
-      />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Link href="/compliance/contract/generator">
+          <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-5 hover:shadow-md hover:ring-gray-950/10 transition-all duration-200 cursor-pointer">
+            <div className="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center mb-4 text-indigo-600">
+              <DocumentTextIcon className="w-6 h-6" />
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-1">Contract Generator</h3>
+            <p className="text-sm text-gray-600">Create and manage employee contracts</p>
+          </div>
+        </Link>
+      </div>
     </div>
   )
 }
