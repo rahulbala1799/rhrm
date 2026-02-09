@@ -1,23 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import PageHeader from '@/components/ui/PageHeader'
 import EmptyState from '@/components/ui/EmptyState'
-
-interface Location {
-  id: string
-  name: string
-  address: string | null
-  postcode: string | null
-  phone: string | null
-  created_at: string
-}
+import { useLocations, type LocationRecord } from '@/app/(dashboard)/contexts/LocationsContext'
 
 export default function LocationsPage() {
-  const [locations, setLocations] = useState<Location[]>([])
-  const [loading, setLoading] = useState(true)
+  const { locations, refetch } = useLocations()
   const [showModal, setShowModal] = useState(false)
-  const [editingLocation, setEditingLocation] = useState<Location | null>(null)
+  const [editingLocation, setEditingLocation] = useState<LocationRecord | null>(null)
   const [formData, setFormData] = useState({
     name: '',
     address: '',
@@ -26,24 +17,7 @@ export default function LocationsPage() {
   })
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    fetchLocations()
-  }, [])
-
-  const fetchLocations = async () => {
-    try {
-      const response = await fetch('/api/settings/locations')
-      if (!response.ok) throw new Error('Failed to fetch')
-      const { locations } = await response.json()
-      setLocations(locations || [])
-    } catch (error) {
-      console.error('Error fetching locations:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleOpenModal = (location?: Location) => {
+  const handleOpenModal = (location?: LocationRecord) => {
     if (location) {
       setEditingLocation(location)
       setFormData({
@@ -87,7 +61,7 @@ export default function LocationsPage() {
       }
 
       handleCloseModal()
-      fetchLocations()
+      await refetch()
       alert(editingLocation ? 'Location updated successfully!' : 'Location created successfully!')
     } catch (error: any) {
       console.error('Error saving location:', error)
@@ -110,29 +84,12 @@ export default function LocationsPage() {
         throw new Error(error.error || 'Failed to delete')
       }
 
-      fetchLocations()
+      await refetch()
       alert('Location deleted successfully!')
     } catch (error: any) {
       console.error('Error deleting location:', error)
       alert(error.message || 'Failed to delete location')
     }
-  }
-
-  if (loading) {
-    return (
-      <div>
-        <PageHeader
-          title="Locations"
-          description="Manage your business locations"
-        />
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-            <div className="h-10 bg-gray-200 rounded"></div>
-          </div>
-        </div>
-      </div>
-    )
   }
 
   return (

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { XMarkIcon } from '@heroicons/react/24/outline'
+import { useState, useEffect, useMemo } from 'react'
+import { XMarkIcon, ClockIcon, MapPinIcon, UserIcon, BriefcaseIcon, ChatBubbleLeftIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
 import { Shift } from '@/lib/schedule/types'
 import { format } from 'date-fns'
 
@@ -26,6 +26,21 @@ export interface ShiftFormData {
   notes: string
   status: 'draft' | 'published' | 'confirmed' | 'cancelled'
 }
+
+const statusConfig = {
+  draft: { label: 'Draft', color: 'bg-gray-100 text-gray-700 border-gray-200', dot: 'bg-gray-400' },
+  published: { label: 'Published', color: 'bg-blue-50 text-blue-700 border-blue-200', dot: 'bg-blue-500' },
+  confirmed: { label: 'Confirmed', color: 'bg-green-50 text-green-700 border-green-200', dot: 'bg-green-500' },
+  cancelled: { label: 'Cancelled', color: 'bg-red-50 text-red-700 border-red-200', dot: 'bg-red-500' },
+}
+
+const breakOptions = [
+  { value: 0, label: 'No break' },
+  { value: 15, label: '15 min' },
+  { value: 30, label: '30 min' },
+  { value: 45, label: '45 min' },
+  { value: 60, label: '1 hour' },
+]
 
 export default function ShiftModal({
   isOpen,
@@ -52,7 +67,49 @@ export default function ShiftModal({
   const [staffRoles, setStaffRoles] = useState<Array<{ id: string; name: string; description: string | null; bg_color: string; text_color: string }>>([])
   const [staffLocations, setStaffLocations] = useState<Array<{ id: string; name: string }>>([])
   const [loadingStaffData, setLoadingStaffData] = useState(false)
-  const [roleValidationError, setRoleValidationError] = useState<string | null>(null)
+  const [showNotes, setShowNotes] = useState(false)
+
+  const isEditing = !!shift
+
+  // Selected staff display name
+  const selectedStaff = useMemo(() => {
+    return staffList.find(s => s.id === formData.staff_id)
+  }, [staffList, formData.staff_id])
+
+  // Merged locations: staff-specific locations + fallback to tenant-wide
+  const availableLocations = useMemo(() => {
+    if (loadingStaffData) return []
+    if (staffLocations.length > 0) return staffLocations
+    // When staff has no specific locations, show all tenant locations
+    return locationList
+  }, [staffLocations, locationList, loadingStaffData])
+
+  // Parse date and time from datetime-local string
+  const dateValue = useMemo(() => {
+    if (!formData.start_time) return ''
+    return formData.start_time.split('T')[0]
+  }, [formData.start_time])
+
+  const startTimeValue = useMemo(() => {
+    if (!formData.start_time) return ''
+    return formData.start_time.split('T')[1] || ''
+  }, [formData.start_time])
+
+  const endTimeValue = useMemo(() => {
+    if (!formData.end_time) return ''
+    return formData.end_time.split('T')[1] || ''
+  }, [formData.end_time])
+
+  // Calculate total hours display
+  const totalHours = useMemo(() => {
+    if (!formData.start_time || !formData.end_time) return null
+    const start = new Date(formData.start_time)
+    const end = new Date(formData.end_time)
+    const diff = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+    if (diff <= 0) return null
+    const net = diff - (formData.break_duration_minutes / 60)
+    return net > 0 ? net.toFixed(1) : null
+  }, [formData.start_time, formData.end_time, formData.break_duration_minutes])
 
   // Fetch staff roles and locations when staff_id changes
   useEffect(() => {
@@ -67,64 +124,51 @@ export default function ShiftModal({
   const fetchStaffRolesAndLocations = async (staffId: string) => {
     setLoadingStaffData(true)
     try {
-      // Fetch roles
-      const rolesResponse = await fetch(`/api/staff/${staffId}/roles`)
-      if (rolesResponse.ok) {
-        const { roles } = await rolesResponse.json()
-        setStaffRoles(roles || [])
+      const [rolesRes, locsRes] = await Promise.all([
+        fetch(`/api/staff/${staffId}/roles`),
+        fetch(`/api/staff/${staffId}/locations`),
+      ])
 
-        // Auto-select role if only one
-        if (roles && roles.length === 1 && !shift) {
+      if (rolesRes.ok) {
+        const { roles } = await rolesRes.json()
+        setStaffRoles(roles || [])
+        // Auto-select if only one role
+        if (roles?.length === 1 && !shift) {
           setFormData(prev => ({ ...prev, role_id: roles[0].id }))
-          setRoleValidationError(null)
-        } else if (shift && shift.role_id) {
-          // Validate existing shift role
-          const hasRole = roles?.some((r: { id: string }) => r.id === shift.role_id)
-          if (!hasRole && roles && roles.length > 0) {
-            setRoleValidationError(`This staff member doesn't have the selected role`)
-          } else {
-            setRoleValidationError(null)
-          }
+        } else if (shift?.role_id) {
           setFormData(prev => ({ ...prev, role_id: shift.role_id }))
-        } else {
-          setRoleValidationError(null)
         }
       }
 
-      // Fetch staff locations from new API
-      const locationsResponse = await fetch(`/api/staff/${staffId}/locations`)
-      if (locationsResponse.ok) {
-        const { locations } = await locationsResponse.json()
+      if (locsRes.ok) {
+        const { locations } = await locsRes.json()
         setStaffLocations(locations || [])
-
-        // Auto-select location if only one and not editing
-        if (locations && locations.length === 1 && !shift) {
+        // Auto-select if only one location
+        if (locations?.length === 1 && !shift) {
           setFormData(prev => ({ ...prev, location_id: locations[0].id }))
-        } else if (shift && shift.location_id) {
-          // When editing, ensure the shift's location is in the list
-          const shiftLocation = locations?.find((loc: { id: string }) => loc.id === shift.location_id)
-          if (!shiftLocation && shift.location_id) {
-            // If shift location is not in staff's assigned locations, add it temporarily
-            const allLocation = locationList.find(loc => loc.id === shift.location_id)
-            if (allLocation) {
-              setStaffLocations(prev => [...(prev || []), allLocation])
+        } else if (shift?.location_id) {
+          // Ensure shift's location is in list
+          const found = locations?.find((l: { id: string }) => l.id === shift.location_id)
+          if (!found && shift.location_id) {
+            const fallback = locationList.find(l => l.id === shift.location_id)
+            if (fallback) {
+              setStaffLocations(prev => [...prev, fallback])
             }
           }
         }
       }
-    } catch (error) {
-      console.error('Error fetching staff data:', error)
+    } catch (err) {
+      console.error('Error fetching staff data:', err)
     } finally {
       setLoadingStaffData(false)
     }
   }
 
+  // Initialize form data
   useEffect(() => {
     if (shift) {
-      // Editing existing shift
       const startTime = new Date(shift.start_time)
       const endTime = new Date(shift.end_time)
-      
       setFormData({
         staff_id: shift.staff_id,
         location_id: shift.location_id,
@@ -135,17 +179,12 @@ export default function ShiftModal({
         notes: shift.notes || '',
         status: shift.status,
       })
-      // Fetch roles for this staff
-      if (shift.staff_id) {
-        fetchStaffRolesAndLocations(shift.staff_id)
-      }
+      setShowNotes(!!(shift.notes))
     } else if (defaultDate && defaultStaffId) {
-      // Creating new shift with defaults
       const defaultStart = new Date(defaultDate)
       defaultStart.setHours(9, 0, 0, 0)
       const defaultEnd = new Date(defaultStart)
       defaultEnd.setHours(17, 0, 0, 0)
-      
       setFormData({
         staff_id: defaultStaffId,
         location_id: '',
@@ -156,18 +195,13 @@ export default function ShiftModal({
         notes: '',
         status: 'draft',
       })
-      // Fetch roles for default staff
-      if (defaultStaffId) {
-        fetchStaffRolesAndLocations(defaultStaffId)
-      }
+      setShowNotes(false)
     } else {
-      // Creating new shift without defaults
       const now = new Date()
       const defaultStart = new Date(now)
       defaultStart.setHours(9, 0, 0, 0)
       const defaultEnd = new Date(defaultStart)
       defaultEnd.setHours(17, 0, 0, 0)
-      
       setFormData({
         staff_id: '',
         location_id: '',
@@ -178,6 +212,7 @@ export default function ShiftModal({
         notes: '',
         status: 'draft',
       })
+      setShowNotes(false)
     }
     setError(null)
   }, [shift, defaultDate, defaultStaffId])
@@ -188,7 +223,6 @@ export default function ShiftModal({
     e.preventDefault()
     setLoading(true)
     setError(null)
-
     try {
       await onSave(formData)
       onClose()
@@ -199,226 +233,319 @@ export default function ShiftModal({
     }
   }
 
+  const updateDate = (newDate: string) => {
+    const startTime = startTimeValue || '09:00'
+    const endTime = endTimeValue || '17:00'
+    setFormData(prev => ({
+      ...prev,
+      start_time: `${newDate}T${startTime}`,
+      end_time: `${newDate}T${endTime}`,
+    }))
+  }
+
+  const updateStartTime = (time: string) => {
+    const date = dateValue || format(new Date(), 'yyyy-MM-dd')
+    setFormData(prev => ({ ...prev, start_time: `${date}T${time}` }))
+  }
+
+  const updateEndTime = (time: string) => {
+    const date = dateValue || format(new Date(), 'yyyy-MM-dd')
+    setFormData(prev => ({ ...prev, end_time: `${date}T${time}` }))
+  }
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={onClose} />
+      <div className="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4">
+        {/* Backdrop */}
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
 
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-          <div className="bg-white px-4 pt-5 pb-4 sm:p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">
-                {shift ? 'Edit Shift' : 'Create Shift'}
-              </h3>
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-500"
-              >
-                <XMarkIcon className="w-6 h-6" />
-              </button>
+        {/* Modal */}
+        <div className="relative w-full sm:max-w-md bg-white sm:rounded-2xl shadow-2xl transform transition-all">
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 pt-5 pb-3">
+            <h2 className="text-lg font-semibold text-gray-900">
+              {isEditing ? 'Edit shift' : 'New shift'}
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div className="mx-5 mb-3 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+              {error}
             </div>
+          )}
 
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
-                {error}
-              </div>
-            )}
+          <form onSubmit={handleSubmit}>
+            <div className="px-5 space-y-4 pb-4">
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Staff */}
+              {/* Staff member */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Staff Member *
+                <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
+                  <UserIcon className="w-3.5 h-3.5" />
+                  Staff member
                 </label>
-                <select
-                  value={formData.staff_id}
-                  onChange={(e) => setFormData({ ...formData, staff_id: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select staff member</option>
-                  {staffList.map((staff) => (
-                    <option key={staff.id} value={staff.id}>
-                      {staff.preferred_name || `${staff.first_name} ${staff.last_name}`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Role - Show if staff has 2+ roles or 0 roles */}
-              {staffRoles.length !== 1 && formData.staff_id && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Role {staffRoles.length > 1 ? '*' : ''}
-                  </label>
+                <div className="relative">
                   <select
-                    value={formData.role_id || ''}
-                    onChange={(e) => {
-                      const selectedRoleId = e.target.value || null
-                      // Validate role selection
-                      if (selectedRoleId && staffRoles.length > 0) {
-                        const hasRole = staffRoles.some(r => r.id === selectedRoleId)
-                        if (!hasRole) {
-                          const selectedRole = staffRoles.find(r => r.id === selectedRoleId)
-                          const roleName = selectedRole?.name || 'Unknown Role'
-                          setRoleValidationError(`This staff member doesn't have ${roleName} role`)
-                        } else {
-                          setRoleValidationError(null)
-                        }
-                      } else {
-                        setRoleValidationError(null)
-                      }
-                      setFormData({ ...formData, role_id: selectedRoleId })
-                    }}
-                    required={staffRoles.length > 1}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      roleValidationError ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                    }`}
+                    value={formData.staff_id}
+                    onChange={(e) => setFormData({ ...formData, staff_id: e.target.value, location_id: '', role_id: null })}
+                    required
+                    className="w-full appearance-none px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-colors pr-10"
                   >
-                    <option value="">{staffRoles.length === 0 ? 'No roles assigned (optional)' : 'Select role'}</option>
-                    {staffRoles.map((role) => (
-                      <option key={role.id} value={role.id} title={role.description || undefined}>
-                        {role.name}
+                    <option value="">Choose staff member…</option>
+                    {staffList.map((staff) => (
+                      <option key={staff.id} value={staff.id}>
+                        {staff.preferred_name || `${staff.first_name} ${staff.last_name}`}
                       </option>
                     ))}
                   </select>
-                  {roleValidationError && (
-                    <p className="mt-1 text-xs text-red-600">{roleValidationError}</p>
-                  )}
-                  {staffRoles.length === 0 && !roleValidationError && (
-                    <p className="mt-1 text-xs text-gray-500">Assign roles to this staff member in their profile</p>
+                  <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Role — always visible when staff is selected, pill selector */}
+              {formData.staff_id && (
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
+                    <BriefcaseIcon className="w-3.5 h-3.5" />
+                    Role
+                    {staffRoles.length > 1 && <span className="text-red-400">*</span>}
+                  </label>
+                  {loadingStaffData ? (
+                    <div className="flex gap-2">
+                      <div className="h-9 w-20 bg-gray-100 rounded-lg animate-pulse" />
+                      <div className="h-9 w-24 bg-gray-100 rounded-lg animate-pulse" />
+                    </div>
+                  ) : staffRoles.length === 0 ? (
+                    <p className="text-sm text-gray-400 italic">No roles assigned — optional</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {staffRoles.map((role) => {
+                        const isSelected = formData.role_id === role.id
+                        return (
+                          <button
+                            key={role.id}
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, role_id: isSelected ? null : role.id }))}
+                            className={`
+                              px-3.5 py-2 rounded-xl text-sm font-medium border-2 transition-all
+                              ${isSelected
+                                ? 'shadow-sm scale-[1.02]'
+                                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'}
+                            `}
+                            style={isSelected ? {
+                              backgroundColor: role.bg_color || '#EFF6FF',
+                              color: role.text_color || '#1D4ED8',
+                              borderColor: role.bg_color || '#BFDBFE',
+                            } : undefined}
+                          >
+                            {role.name}
+                          </button>
+                        )
+                      })}
+                    </div>
                   )}
                 </div>
               )}
 
-              {/* Location - Show if staff has 2+ locations or 0 locations */}
-              {(staffLocations.length !== 1 || !formData.staff_id) && (
+              {/* Location — always visible when staff is selected */}
+              {formData.staff_id && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Location *
+                  <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
+                    <MapPinIcon className="w-3.5 h-3.5" />
+                    Location
                   </label>
-                  {staffLocations.length === 0 && formData.staff_id ? (
-                    <div className="w-full px-3 py-2 border border-red-300 rounded-lg bg-red-50">
-                      <p className="text-sm text-red-800">
-                        No locations assigned to this staff member. Please assign locations in their profile.
-                      </p>
+                  {loadingStaffData ? (
+                    <div className="h-10 bg-gray-100 rounded-xl animate-pulse" />
+                  ) : availableLocations.length === 0 ? (
+                    <p className="text-sm text-amber-600">No locations assigned. <a href={`/staff/${formData.staff_id}`} className="underline hover:text-amber-700">Add in profile →</a></p>
+                  ) : availableLocations.length <= 4 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {availableLocations.map((loc) => {
+                        const isSelected = formData.location_id === loc.id
+                        return (
+                          <button
+                            key={loc.id}
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, location_id: loc.id }))}
+                            className={`
+                              px-3.5 py-2 rounded-xl text-sm font-medium border-2 transition-all
+                              ${isSelected
+                                ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
+                                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'}
+                            `}
+                          >
+                            {loc.name}
+                          </button>
+                        )
+                      })}
                     </div>
                   ) : (
-                    <select
-                      value={formData.location_id}
-                      onChange={(e) => setFormData({ ...formData, location_id: e.target.value })}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Select location</option>
-                      {staffLocations.map((location) => (
-                        <option key={location.id} value={location.id}>
-                          {location.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  {staffLocations.length === 0 && formData.staff_id && (
-                    <p className="mt-1 text-xs text-gray-500">Assign locations to this staff member in their profile</p>
+                    <div className="relative">
+                      <select
+                        value={formData.location_id}
+                        onChange={(e) => setFormData({ ...formData, location_id: e.target.value })}
+                        required
+                        className="w-full appearance-none px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-colors pr-10"
+                      >
+                        <option value="">Choose location…</option>
+                        {availableLocations.map((loc) => (
+                          <option key={loc.id} value={loc.id}>{loc.name}</option>
+                        ))}
+                      </select>
+                      <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    </div>
                   )}
                 </div>
               )}
 
-              {/* Start Time */}
+              {/* Date + Time row */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Start Time *
+                <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
+                  <ClockIcon className="w-3.5 h-3.5" />
+                  Date & time
                 </label>
-                <input
-                  type="datetime-local"
-                  value={formData.start_time}
-                  onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-3">
+                  {/* Date */}
+                  <input
+                    type="date"
+                    value={dateValue}
+                    onChange={(e) => updateDate(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  {/* Time range */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="time"
+                      value={startTimeValue}
+                      onChange={(e) => updateStartTime(e.target.value)}
+                      required
+                      className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <span className="text-gray-400 text-sm font-medium">to</span>
+                    <input
+                      type="time"
+                      value={endTimeValue}
+                      onChange={(e) => updateEndTime(e.target.value)}
+                      required
+                      className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  {/* Break + total summary */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">Break:</span>
+                      <div className="flex gap-1">
+                        {breakOptions.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, break_duration_minutes: opt.value }))}
+                            className={`
+                              px-2 py-1 text-xs rounded-md transition-colors
+                              ${formData.break_duration_minutes === opt.value
+                                ? 'bg-blue-100 text-blue-700 font-medium'
+                                : 'text-gray-500 hover:bg-gray-100'}
+                            `}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {totalHours && (
+                      <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-md">
+                        {totalHours}h net
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              {/* End Time */}
+              {/* Status pills */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  End Time *
-                </label>
-                <input
-                  type="datetime-local"
-                  value={formData.end_time}
-                  onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5 block">Status</label>
+                <div className="flex gap-2">
+                  {(Object.keys(statusConfig) as Array<keyof typeof statusConfig>).map((key) => {
+                    const cfg = statusConfig[key]
+                    const isSelected = formData.status === key
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, status: key }))}
+                        className={`
+                          flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all
+                          ${isSelected ? cfg.color + ' shadow-sm' : 'border-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-50'}
+                        `}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? cfg.dot : 'bg-gray-300'}`} />
+                        {cfg.label}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
 
-              {/* Break Duration */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Break Duration (minutes)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.break_duration_minutes}
-                  onChange={(e) => setFormData({ ...formData, break_duration_minutes: parseInt(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              {/* Status */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
-                </label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </div>
-
-              {/* Notes */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notes
-                </label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              {/* Actions */}
-              <div className="flex justify-end gap-3 pt-4">
+              {/* Notes toggle */}
+              {!showNotes ? (
                 <button
                   type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                  onClick={() => setShowNotes(true)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  Cancel
+                  <ChatBubbleLeftIcon className="w-3.5 h-3.5" />
+                  Add notes
                 </button>
-                <button
-                  type="submit"
-                  disabled={loading || !!roleValidationError}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? 'Saving...' : shift ? 'Update' : 'Create'}
-                </button>
-              </div>
-            </form>
-          </div>
+              ) : (
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
+                    <ChatBubbleLeftIcon className="w-3.5 h-3.5" />
+                    Notes
+                  </label>
+                  <textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    rows={2}
+                    placeholder="Add shift notes…"
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-colors resize-none"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100 bg-gray-50/50 sm:rounded-b-2xl">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                    Saving…
+                  </span>
+                ) : isEditing ? 'Update shift' : 'Create shift'}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
   )
 }
-
-

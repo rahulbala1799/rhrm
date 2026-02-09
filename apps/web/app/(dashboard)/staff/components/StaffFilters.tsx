@@ -2,11 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-
-interface Location {
-  id: string
-  name: string
-}
+import { useLocations } from '@/app/(dashboard)/contexts/LocationsContext'
 
 interface StaffFiltersProps {
   onFilterChange?: () => void
@@ -15,13 +11,12 @@ interface StaffFiltersProps {
 export default function StaffFilters({ onFilterChange }: StaffFiltersProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { locations } = useLocations()
   
   const [searchInput, setSearchInput] = useState(searchParams.get('search') || '')
   const [debouncedSearch, setDebouncedSearch] = useState(searchParams.get('search') || '')
   const [status, setStatus] = useState(searchParams.get('status') || '')
   const [locationId, setLocationId] = useState(searchParams.get('location_id') || '')
-  const [locations, setLocations] = useState<Location[]>([])
-  const [loadingLocations, setLoadingLocations] = useState(true)
 
   // Debounce search input
   useEffect(() => {
@@ -75,17 +70,6 @@ export default function StaffFilters({ onFilterChange }: StaffFiltersProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, status, locationId])
 
-  // Fetch locations
-  useEffect(() => {
-    fetch('/api/settings/locations')
-      .then(res => res.json())
-      .then(data => {
-        setLocations(data.locations || [])
-        setLoadingLocations(false)
-      })
-      .catch(() => setLoadingLocations(false))
-  }, [])
-
   const hasActiveFilters = debouncedSearch || status || locationId
 
   const clearFilters = () => {
@@ -126,8 +110,7 @@ export default function StaffFilters({ onFilterChange }: StaffFiltersProps) {
           <select
             value={locationId}
             onChange={(e) => setLocationId(e.target.value)}
-            disabled={loadingLocations}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm min-w-[160px] disabled:bg-gray-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm min-w-[160px]"
           >
             <option value="">All Locations</option>
             {locations.map((location) => (

@@ -26,6 +26,7 @@ import { useWindowFocusRefetch } from '../hooks/useWindowFocusRefetch'
 import { useUndoRedo } from '../day/hooks/useUndoRedo'
 import { normalizeTimeForCommit } from '@/lib/schedule/shift-updates'
 import ShiftContextMenu from '../day/components/ShiftContextMenu'
+import { useLocations } from '@/app/(dashboard)/contexts/LocationsContext'
 
 
 export default function WeekPlannerPage() {
@@ -43,7 +44,7 @@ export default function WeekPlannerPage() {
     location_id: string | null
     location?: { id: string; name: string } | null
   }>>([])
-  const [locationList, setLocationList] = useState<Array<{ id: string; name: string }>>([])
+  const { locations: locationList } = useLocations()
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null)
   const [staffHourlyRates, setStaffHourlyRates] = useState<Map<string, number | null>>(new Map())
   const [staffOvertimeConfigs, setStaffOvertimeConfigs] = useState<Map<string, {
@@ -180,21 +181,8 @@ export default function WeekPlannerPage() {
       }
     }
 
-    const fetchLocations = async () => {
-      try {
-        const response = await fetch('/api/settings/locations')
-        if (response.ok) {
-          const data = await response.json()
-          setLocationList(data.locations || [])
-        }
-      } catch (err) {
-        console.error('Error fetching locations:', err)
-      }
-    }
-
     setIsLoadingRates(canViewBudget)
     fetchStaff()
-    fetchLocations()
   }, [canViewBudget])
 
   const handleCreateShift = () => {

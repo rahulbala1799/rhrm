@@ -23,7 +23,10 @@ export default function OvernightContinuationBlock({
   return (
     <div
       className="rounded border border-dashed border-gray-300 bg-gray-50 bg-opacity-50 p-1.5 text-xs text-gray-500 opacity-60 mt-1"
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick?.()
+      }}
       draggable={shift.status !== 'cancelled'}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
