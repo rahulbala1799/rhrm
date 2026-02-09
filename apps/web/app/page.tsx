@@ -2,6 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { getTenantContext } from '@/lib/auth/get-tenant-context'
 
+// Ensure root is never cached so we always have fresh auth + tenant context
+export const dynamic = 'force-dynamic'
+
 export default async function Home() {
   const supabase = await createClient()
 
@@ -43,6 +46,21 @@ export default async function Home() {
         redirect('/onboarding/step-1-welcome')
       }
     } else {
+      // Fallback: getTenantContext() may return null (e.g. no cookie, RLS timing).
+      // Re-check for any active membership so we don't send existing users to onboarding.
+      const { data: fallbackMembership } = await supabase
+        .from('memberships')
+        .select('tenant_id')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .limit(1)
+        .maybeSingle()
+
+      if (fallbackMembership?.tenant_id) {
+        // User has a tenant; set cookie and send to dashboard
+        redirect(`/api/set-active-tenant?tenant_id=${fallbackMembership.tenant_id}`)
+      }
+
       // Check for invited-only memberships (still allow onboarding but warn)
       const { data: invitedMemberships } = await supabase
         .from('memberships')

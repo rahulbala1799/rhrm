@@ -27,7 +27,7 @@ export async function getTenantContext(): Promise<TenantContext> {
   const activeTenantId = cookieStore.get('active_tenant_id')?.value
 
   if (!activeTenantId) {
-    // Try to get first active membership
+    // Try to get first active membership (maybeSingle: no error when 0 rows)
     const { data: membership } = await supabase
       .from('memberships')
       .select('tenant_id, role, id')
@@ -35,7 +35,7 @@ export async function getTenantContext(): Promise<TenantContext> {
       .eq('status', 'active')
       .order('created_at', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
 
     if (membership) {
       return {
@@ -55,7 +55,7 @@ export async function getTenantContext(): Promise<TenantContext> {
     .eq('user_id', user.id)
     .eq('tenant_id', activeTenantId)
     .eq('status', 'active')
-    .single()
+    .maybeSingle()
 
   if (!membership) {
     // Invalid tenant - clear cookie and return null
