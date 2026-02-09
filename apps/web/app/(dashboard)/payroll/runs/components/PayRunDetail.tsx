@@ -45,20 +45,36 @@ export default function PayRunDetail({ runId }: PayRunDetailProps) {
   const [changes, setChanges] = useState<any[]>([])
   const [editingLineId, setEditingLineId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
   const fetchRun = async () => {
+    if (!runId) return
+    setLoading(true)
+    setFetchError(null)
     try {
       const [runRes, changesRes] = await Promise.all([
         fetch(`/api/payroll/runs/${runId}`),
         fetch(`/api/payroll/runs/${runId}/changes`),
       ])
-      if (runRes.ok) setRun(await runRes.json())
+      if (runRes.ok) {
+        const data = await runRes.json()
+        setRun({
+          ...data,
+          lines: Array.isArray(data.lines) ? data.lines : [],
+        })
+      } else {
+        setRun(null)
+        const errBody = await runRes.json().catch(() => ({}))
+        setFetchError(errBody.error || `Failed to load (${runRes.status})`)
+      }
       if (changesRes.ok) {
         const data = await changesRes.json()
         setChanges(data.changes || [])
       }
     } catch (e) {
       console.error(e)
+      setRun(null)
+      setFetchError('Network or server error')
     } finally {
       setLoading(false)
     }
@@ -68,10 +84,22 @@ export default function PayRunDetail({ runId }: PayRunDetailProps) {
     fetchRun()
   }, [runId])
 
-  if (loading || !run) {
+  if (loading && !run) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-12 text-center text-gray-500">
-        {loading ? 'Loading…' : 'Pay run not found.'}
+        Loading…
+      </div>
+    )
+  }
+
+  if (!run) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+        <p className="text-gray-700 font-medium">Pay run not found</p>
+        {fetchError && <p className="mt-1 text-sm text-red-600">{fetchError}</p>}
+        <Link href="/payroll/runs" className="mt-4 inline-block text-sm text-blue-600 hover:text-blue-800">
+          ← Back to Pay Runs
+        </Link>
       </div>
     )
   }

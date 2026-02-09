@@ -1,14 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useParams } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
 import PayRunDetail from '../components/PayRunDetail'
 
-export default function PayRunDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const [id, setId] = useState<string | null>(null)
-  useEffect(() => {
-    params.then((p) => setId(p.id))
-  }, [params])
+export default function PayRunDetailPage() {
+  const params = useParams()
+  const id = params?.id as string | undefined
 
   if (!id) return null
 

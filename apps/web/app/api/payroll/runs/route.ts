@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getTenantContext } from '@/lib/auth/get-tenant-context'
 import { NextResponse } from 'next/server'
+import { getTenantSettings } from '@/lib/schedule/utils'
 import { generatePayRunData, totalsFromLines } from '@/lib/payroll/generate-pay-run'
 
 export const dynamic = 'force-dynamic'
@@ -104,10 +105,14 @@ export async function POST(request: Request) {
     )
   }
 
+  const settings = await getTenantSettings()
+  const timezone = settings?.timezone || 'UTC'
+
   const { name, lines } = await generatePayRunData({
     tenantId,
     payPeriodStart: pay_period_start,
     payPeriodEnd: pay_period_end,
+    timezone,
     createdBy,
     supabase,
   })

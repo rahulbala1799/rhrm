@@ -1,11 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { getTenantContext } from '@/lib/auth/get-tenant-context'
 import { NextResponse } from 'next/server'
+import { getTenantSettings } from '@/lib/schedule/utils'
 import { generatePayRunData, totalsFromLines } from '@/lib/payroll/generate-pay-run'
 
 export const dynamic = 'force-dynamic'
 
-/** POST /api/payroll/runs/preview — Preview what a run would contain (no save) */
+/** POST /api/payroll/runs/preview — Preview what a run would contain (shifts in period, no save) */
 export async function POST(request: Request) {
   const { tenantId, role } = await getTenantContext()
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -29,24 +30,19 @@ export async function POST(request: Request) {
   }
 
   const supabase = await createClient()
+  const settings = await getTenantSettings()
+  const timezone = settings?.timezone || 'UTC'
 
   const { lines } = await generatePayRunData({
     tenantId,
     payPeriodStart: pay_period_start,
     payPeriodEnd: pay_period_end,
+    timezone,
     createdBy: null,
     supabase,
   })
 
   const totals = totalsFromLines(lines)
-
-  const { count: unapprovedCount } = await supabase
-    .from('timesheets')
-    .select('*', { count: 'exact', head: true })
-    .eq('tenant_id', tenantId)
-    .in('status', ['draft', 'submitted'])
-    .gte('date', pay_period_start)
-    .lte('date', pay_period_end)
 
   return NextResponse.json({
     period_start: pay_period_start,
@@ -54,6 +50,5 @@ export async function POST(request: Request) {
     staff_count: totals.staff_count,
     total_hours: totals.total_hours,
     estimated_gross: totals.total_gross_pay,
-    unapproved_count: unapprovedCount,
   })
 }

@@ -23,7 +23,6 @@ export default function CreatePayRunModal({ isOpen, onClose, onCreated }: Create
     staff_count: number
     total_hours: number
     estimated_gross: number
-    unapproved_count: number
   } | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -197,14 +196,9 @@ export default function CreatePayRunModal({ isOpen, onClose, onCreated }: Create
                 <p className="text-sm text-gray-500">Loading…</p>
               ) : preview ? (
                 <ul className="text-sm text-gray-700 space-y-1">
-                  <li>{preview.staff_count} staff with approved timesheets</li>
+                  <li>{preview.staff_count} staff with shifts in this period</li>
                   <li>{Number(preview.total_hours).toFixed(2)} total hours</li>
                   <li>{format(preview.estimated_gross)} estimated gross</li>
-                  {preview.unapproved_count > 0 && (
-                    <li className="text-amber-700 mt-2">
-                      ⚠ {preview.unapproved_count} staff have unapproved timesheets in this period (will be excluded)
-                    </li>
-                  )}
                 </ul>
               ) : (
                 <p className="text-sm text-gray-500">No preview</p>

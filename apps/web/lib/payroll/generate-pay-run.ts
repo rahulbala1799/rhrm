@@ -1,15 +1,16 @@
-// Generate pay run from approved timesheets — see PAY_RUNS_DESIGN.md
+// Generate pay run from shifts in the planner — see PAY_RUNS_DESIGN.md
 
 import { SupabaseClient } from '@supabase/supabase-js'
 import { format } from 'date-fns'
+import { fromZonedTime } from 'date-fns-tz'
 import { getRatesForStaffBatch, findRateForDate } from '@/lib/staff-rates/utils'
 import { calculateOvertimeForLine } from './overtime'
-import type { PayRunLine } from './types'
 
 export interface GeneratePayRunOptions {
   tenantId: string
   payPeriodStart: string // YYYY-MM-DD
   payPeriodEnd: string   // YYYY-MM-DD
+  timezone?: string     // tenant timezone for shift date filtering
   createdBy: string | null
   supabase: SupabaseClient
 }
@@ -30,7 +31,7 @@ export interface GeneratedLine {
   adjustment_reason: null
   gross_pay: number
   status: 'included'
-  timesheet_ids: string[]
+  timesheet_ids: string[] // shift IDs (stored in same column for audit)
 }
 
 function buildRunName(periodStart: string, periodEnd: string): string {
@@ -40,33 +41,56 @@ function buildRunName(periodStart: string, periodEnd: string): string {
 }
 
 /**
- * Fetch approved timesheets in range, group by staff, and build line data.
+ * Compute shift duration in hours (end - start minus break).
+ */
+function shiftHours(startTime: string, endTime: string, breakMinutes: number): number {
+  const start = new Date(startTime).getTime()
+  const end = new Date(endTime).getTime()
+  const hours = (end - start) / (1000 * 60 * 60)
+  const breakHours = (breakMinutes || 0) / 60
+  return Math.max(0, hours - breakHours)
+}
+
+/**
+ * Fetch shifts in the pay period (by start date in tenant TZ), group by staff, and build line data.
  * Does not insert — returns run payload and lines for caller to insert.
  */
 export async function generatePayRunData(
   options: GeneratePayRunOptions
 ): Promise<{ name: string; lines: GeneratedLine[]; timesheetIdsByStaff: Map<string, string[]> }> {
-  const { tenantId, payPeriodStart, payPeriodEnd, supabase } = options
+  const { tenantId, payPeriodStart, payPeriodEnd, supabase, timezone: tz = 'UTC' } = options
 
-  const { data: timesheets, error: tsError } = await supabase
-    .from('timesheets')
-    .select('id, staff_id, date, total_hours')
+  // Pay period bounds in tenant timezone, then to UTC for DB
+  const [sy, sm, sd] = payPeriodStart.split('-').map(Number)
+  const [ey, em, ed] = payPeriodEnd.split('-').map(Number)
+  const periodStartLocal = new Date(sy, sm - 1, sd, 0, 0, 0, 0)
+  const periodEndLocal = new Date(ey, em - 1, ed, 23, 59, 59, 999)
+  const periodStartUTC = fromZonedTime(periodStartLocal, tz)
+  const periodEndUTC = fromZonedTime(periodEndLocal, tz)
+
+  const { data: shifts, error: shiftError } = await supabase
+    .from('shifts')
+    .select('id, staff_id, start_time, end_time, break_duration_minutes')
     .eq('tenant_id', tenantId)
-    .eq('status', 'approved')
-    .gte('date', payPeriodStart)
-    .lte('date', payPeriodEnd)
+    .neq('status', 'cancelled')
+    .gte('start_time', periodStartUTC.toISOString())
+    .lte('start_time', periodEndUTC.toISOString())
 
-  if (tsError) throw new Error(tsError.message)
+  if (shiftError) throw new Error(shiftError.message)
 
-  const byStaff = new Map<string, { totalHours: number; ids: string[] }>()
-  for (const ts of timesheets || []) {
-    const hours = Number(ts.total_hours) || 0
-    const existing = byStaff.get(ts.staff_id)
+  const byStaff = new Map<string, { totalHours: number; shiftIds: string[] }>()
+  for (const shift of shifts || []) {
+    const hours = shiftHours(
+      shift.start_time,
+      shift.end_time,
+      shift.break_duration_minutes ?? 0
+    )
+    const existing = byStaff.get(shift.staff_id)
     if (existing) {
       existing.totalHours += hours
-      existing.ids.push(ts.id)
+      existing.shiftIds.push(shift.id)
     } else {
-      byStaff.set(ts.staff_id, { totalHours: hours, ids: [ts.id] })
+      byStaff.set(shift.staff_id, { totalHours: hours, shiftIds: [shift.id] })
     }
   }
 
@@ -97,8 +121,8 @@ export async function generatePayRunData(
     const staff = staffMap.get(staffId)
     if (!staff) continue
 
-    const { totalHours, ids } = byStaff.get(staffId)!
-    timesheetIdsByStaff.set(staffId, ids)
+    const { totalHours, shiftIds } = byStaff.get(staffId)!
+    timesheetIdsByStaff.set(staffId, shiftIds)
 
     const staffRates = ratesByStaff.get(staffId) || []
     const hourlyRate = findRateForDate(staffRates, periodEndDate)
@@ -136,7 +160,7 @@ export async function generatePayRunData(
       adjustment_reason: null,
       gross_pay: Math.round(grossPay * 100) / 100,
       status: 'included',
-      timesheet_ids: ids,
+      timesheet_ids: shiftIds,
     })
   }
 
