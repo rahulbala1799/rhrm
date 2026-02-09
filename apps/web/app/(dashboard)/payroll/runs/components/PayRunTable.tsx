@@ -20,36 +20,36 @@ export default function PayRunTable({ runs }: { runs: Run[] }) {
 
   if (runs.length === 0) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-12 text-center text-gray-500">
+      <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-12 text-center text-gray-500">
         No pay runs yet. Create one to get started.
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-hidden">
       <table className="w-full">
-        <thead className="bg-gray-50 border-b border-gray-200">
-          <tr>
-            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Period</th>
-            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Staff</th>
-            <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Hours</th>
-            <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Gross</th>
-            <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Status</th>
+        <thead>
+          <tr className="border-b border-gray-100">
+            <th className="px-5 py-2.5 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Period</th>
+            <th className="px-5 py-2.5 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Staff</th>
+            <th className="px-5 py-2.5 text-right text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Hours</th>
+            <th className="px-5 py-2.5 text-right text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Gross</th>
+            <th className="px-5 py-2.5 text-right text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Status</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-200">
+        <tbody>
           {runs.map((run) => (
-            <tr key={run.id} className="hover:bg-gray-50">
-              <td className="px-6 py-4">
-                <Link href={`/payroll/runs/${run.id}`} className="text-blue-600 hover:text-blue-800 font-medium">
+            <tr key={run.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors">
+              <td className="px-5 py-3">
+                <Link href={`/payroll/runs/${run.id}`} className="text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
                   {run.name}
                 </Link>
               </td>
-              <td className="px-6 py-4 text-sm text-gray-700">{run.staff_count}</td>
-              <td className="px-6 py-4 text-sm text-right text-gray-700">{Number(run.total_hours).toFixed(2)}</td>
-              <td className="px-6 py-4 text-sm text-right text-gray-700">{format(Number(run.total_gross_pay))}</td>
-              <td className="px-6 py-4 text-right">
+              <td className="px-5 py-3 text-sm text-gray-600">{run.staff_count}</td>
+              <td className="px-5 py-3 text-sm text-right text-gray-600">{Number(run.total_hours).toFixed(2)}</td>
+              <td className="px-5 py-3 text-sm text-right font-medium text-gray-900">{format(Number(run.total_gross_pay))}</td>
+              <td className="px-5 py-3 text-right">
                 <PayRunStatusBadge status={run.status as 'draft' | 'reviewing' | 'approved' | 'finalised'} />
               </td>
             </tr>

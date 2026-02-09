@@ -4,12 +4,20 @@ import Link from 'next/link'
 import PageHeader from '@/components/ui/PageHeader'
 import StatCard from '@/components/ui/StatCard'
 import SectionCard from '@/components/ui/SectionCard'
+import {
+  CalendarDaysIcon,
+  UserPlusIcon,
+  EnvelopeIcon,
+  MapPinIcon,
+  ClockIcon,
+  ExclamationCircleIcon,
+  UsersIcon,
+  DocumentTextIcon,
+} from '@heroicons/react/24/outline'
 
 export default async function DashboardPage() {
-  // Get user's role
   const { role } = await getTenantContext()
 
-  // Redirect staff to their dashboard
   if (role === 'staff') {
     redirect('/staff-dashboard')
   }
@@ -22,111 +30,35 @@ export default async function DashboardPage() {
       />
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Link href="/schedule/week">
-          <button className="w-full bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-sm transition-all text-left">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900">Create Schedule</p>
-                <p className="text-sm text-gray-600">Plan shifts</p>
-              </div>
-            </div>
-          </button>
-        </Link>
-
-        <Link href="/staff/new">
-          <button className="w-full bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-sm transition-all text-left">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center text-green-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                </svg>
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900">Add Staff</p>
-                <p className="text-sm text-gray-600">New team member</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+        {[
+          { href: '/schedule/week', icon: CalendarDaysIcon, label: 'Create Schedule', sub: 'Plan shifts', color: 'bg-indigo-50 text-indigo-600' },
+          { href: '/staff/new', icon: UserPlusIcon, label: 'Add Staff', sub: 'New team member', color: 'bg-emerald-50 text-emerald-600' },
+          { href: '/settings/invitations', icon: EnvelopeIcon, label: 'Invite Team', sub: 'Send invitations', color: 'bg-violet-50 text-violet-600' },
+          { href: '/settings/locations', icon: MapPinIcon, label: 'Add Location', sub: 'New workplace', color: 'bg-amber-50 text-amber-600' },
+        ].map((item) => (
+          <Link key={item.href} href={item.href}>
+            <div className="group bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4 hover:shadow-md hover:ring-gray-950/10 transition-all duration-200 cursor-pointer">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${item.color}`}>
+                  <item.icon className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">{item.label}</p>
+                  <p className="text-[13px] text-gray-500">{item.sub}</p>
+                </div>
               </div>
             </div>
-          </button>
-        </Link>
-
-        <Link href="/settings/invitations">
-          <button className="w-full bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-sm transition-all text-left">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center text-purple-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900">Invite Team</p>
-                <p className="text-sm text-gray-600">Send invitations</p>
-              </div>
-            </div>
-          </button>
-        </Link>
-
-        <Link href="/settings/locations">
-          <button className="w-full bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-sm transition-all text-left">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center text-orange-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900">Add Location</p>
-                <p className="text-sm text-gray-600">New workplace</p>
-              </div>
-            </div>
-          </button>
-        </Link>
+          </Link>
+        ))}
       </div>
 
       {/* Today Snapshot */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard
-          title="Shifts Today"
-          value={12}
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          }
-        />
-        <StatCard
-          title="Unfilled Shifts"
-          value={3}
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          }
-        />
-        <StatCard
-          title="People On Leave"
-          value={2}
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          }
-        />
-        <StatCard
-          title="Expiring Docs"
-          value={2}
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          }
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+        <StatCard title="Shifts Today" value={12} iconColor="bg-indigo-50 text-indigo-600" icon={<ClockIcon className="w-5 h-5" />} />
+        <StatCard title="Unfilled Shifts" value={3} iconColor="bg-red-50 text-red-600" icon={<ExclamationCircleIcon className="w-5 h-5" />} />
+        <StatCard title="People On Leave" value={2} iconColor="bg-amber-50 text-amber-600" icon={<UsersIcon className="w-5 h-5" />} />
+        <StatCard title="Expiring Docs" value={2} iconColor="bg-orange-50 text-orange-600" icon={<DocumentTextIcon className="w-5 h-5" />} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -134,98 +66,67 @@ export default async function DashboardPage() {
         <div className="lg:col-span-2">
           <SectionCard
             title="Today's Schedule"
+            noPadding
             action={
-              <Link href="/schedule/week">
-                <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                  View Week Planner →
-                </button>
+              <Link href="/schedule/week" className="text-[13px] font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
+                View Week Planner →
               </Link>
             }
           >
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Time</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Role</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Location</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Staff</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Status</th>
+                  <tr className="border-b border-gray-100">
+                    <th className="text-left py-2.5 px-5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Time</th>
+                    <th className="text-left py-2.5 px-5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Role</th>
+                    <th className="text-left py-2.5 px-5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Location</th>
+                    <th className="text-left py-2.5 px-5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Staff</th>
+                    <th className="text-left py-2.5 px-5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
-                  <tr className="hover:bg-gray-50">
-                    <td className="py-3 px-4 text-sm text-gray-900">09:00 - 17:00</td>
-                    <td className="py-3 px-4 text-sm text-gray-700">Sales Associate</td>
-                    <td className="py-3 px-4 text-sm text-gray-700">Unit 14 Ashbourne</td>
-                    <td className="py-3 px-4 text-sm text-gray-700">John Smith</td>
-                    <td className="py-3 px-4">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Confirmed
-                      </span>
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-gray-50">
-                    <td className="py-3 px-4 text-sm text-gray-900">10:00 - 18:00</td>
-                    <td className="py-3 px-4 text-sm text-gray-700">Cashier</td>
-                    <td className="py-3 px-4 text-sm text-gray-700">Unit 14 Ashbourne</td>
-                    <td className="py-3 px-4 text-sm text-gray-700">—</td>
-                    <td className="py-3 px-4">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        Unfilled
-                      </span>
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-gray-50">
-                    <td className="py-3 px-4 text-sm text-gray-900">14:00 - 22:00</td>
-                    <td className="py-3 px-4 text-sm text-gray-700">Manager</td>
-                    <td className="py-3 px-4 text-sm text-gray-700">Unit 14 Ashbourne</td>
-                    <td className="py-3 px-4 text-sm text-gray-700">Sarah Johnson</td>
-                    <td className="py-3 px-4">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Confirmed
-                      </span>
-                    </td>
-                  </tr>
+                <tbody>
+                  {[
+                    { time: '09:00 - 17:00', role: 'Sales Associate', loc: 'Unit 14 Ashbourne', staff: 'John Smith', status: 'Confirmed', statusColor: 'bg-emerald-50 text-emerald-700' },
+                    { time: '10:00 - 18:00', role: 'Cashier', loc: 'Unit 14 Ashbourne', staff: null, status: 'Unfilled', statusColor: 'bg-red-50 text-red-700' },
+                    { time: '14:00 - 22:00', role: 'Manager', loc: 'Unit 14 Ashbourne', staff: 'Sarah Johnson', status: 'Confirmed', statusColor: 'bg-emerald-50 text-emerald-700' },
+                  ].map((row, i) => (
+                    <tr key={i} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors">
+                      <td className="py-3 px-5 text-sm font-medium text-gray-900">{row.time}</td>
+                      <td className="py-3 px-5 text-sm text-gray-600">{row.role}</td>
+                      <td className="py-3 px-5 text-sm text-gray-600">{row.loc}</td>
+                      <td className="py-3 px-5 text-sm text-gray-600">{row.staff ?? <span className="text-gray-400">—</span>}</td>
+                      <td className="py-3 px-5">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${row.statusColor}`}>
+                          {row.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           </SectionCard>
         </div>
 
-        {/* Alerts / Tasks */}
+        {/* Alerts */}
         <div>
           <SectionCard title="Alerts & Tasks">
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <svg className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-yellow-900">3 staff missing bank details</p>
-                  <p className="text-xs text-yellow-700 mt-1">Required for payroll</p>
+            <div className="space-y-2.5">
+              {[
+                { icon: '!', bg: 'bg-amber-500', title: '3 staff missing bank details', sub: 'Required for payroll' },
+                { icon: '!', bg: 'bg-orange-500', title: '2 certs expiring in 14 days', sub: 'Food safety certificates' },
+                { icon: '!', bg: 'bg-red-500', title: '1 wage rate not set', sub: 'Manager role needs pay rate' },
+              ].map((alert, i) => (
+                <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100/80 transition-colors">
+                  <div className={`w-6 h-6 rounded-full ${alert.bg} flex items-center justify-center shrink-0 mt-0.5`}>
+                    <span className="text-white text-xs font-bold">{alert.icon}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">{alert.title}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{alert.sub}</p>
+                  </div>
                 </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                <svg className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-orange-900">2 certs expiring in 14 days</p>
-                  <p className="text-xs text-orange-700 mt-1">Food safety certificates</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <svg className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-red-900">1 wage rate not set</p>
-                  <p className="text-xs text-red-700 mt-1">Manager role needs pay rate</p>
-                </div>
-              </div>
+              ))}
             </div>
           </SectionCard>
         </div>
@@ -233,4 +134,3 @@ export default async function DashboardPage() {
     </div>
   )
 }
-

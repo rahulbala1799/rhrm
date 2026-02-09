@@ -43,7 +43,7 @@ export default function PayRunStatusActions({ runId, status, onStatusChange }: P
         <button
           type="button"
           onClick={handleTransition}
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+          className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 shadow-sm transition-colors"
         >
           Mark as {next.charAt(0).toUpperCase() + next.slice(1)} →
         </button>
@@ -52,7 +52,7 @@ export default function PayRunStatusActions({ runId, status, onStatusChange }: P
         <button
           type="button"
           onClick={handleDelete}
-          className="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100"
+          className="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 ring-1 ring-red-200 rounded-lg hover:bg-red-100 transition-colors"
         >
           Delete
         </button>

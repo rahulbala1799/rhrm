@@ -484,57 +484,57 @@ export default function DayViewPage() {
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Offline Indicator */}
         {isOffline && (
-          <div className="bg-yellow-500 text-white px-4 py-2 text-sm text-center">
-            You're offline. Changes will sync when connection is restored.
+          <div className="bg-amber-500 text-white px-4 py-2 text-sm text-center font-medium">
+            You&apos;re offline. Changes will sync when connection is restored.
           </div>
         )}
 
         {/* Top Toolbar */}
-        <div className="flex items-center justify-between border-b bg-white px-4 py-2">
+        <div className="flex items-center justify-between border-b border-gray-100 bg-white px-4 py-2.5">
           <div className="flex items-center gap-2">
             <button
               onClick={() => handleDateChange(subDays(currentDate, 1))}
-              className="rounded px-3 py-1 text-sm hover:bg-gray-100"
+              className="rounded-lg px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 transition-colors"
             >
               ← Yesterday
             </button>
             <button
               onClick={() => handleDateChange(new Date())}
-              className="rounded px-3 py-1 text-sm font-medium hover:bg-gray-100"
+              className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-900 hover:bg-gray-100 transition-colors"
             >
               Today
             </button>
             <button
               onClick={() => handleDateChange(addDays(currentDate, 1))}
-              className="rounded px-3 py-1 text-sm hover:bg-gray-100"
+              className="rounded-lg px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 transition-colors"
             >
               Tomorrow →
             </button>
-            <div className="ml-4 text-lg font-semibold">
+            <div className="ml-4 text-base font-semibold text-gray-900 tracking-tight">
               {format(currentDate, 'EEEE, MMMM d, yyyy')}
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setSnapEnabled(!snapEnabled)}
-              className={`px-3 py-1 text-sm rounded ${
-                snapEnabled ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+              className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors ${
+                snapEnabled ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' : 'bg-gray-100 text-gray-600'
               }`}
               title="Toggle 15-minute grid snapping"
             >
-              📏 Snap
+              Snap
             </button>
             {shifts.filter(s => s.status === 'draft').length > 0 && (
               <button
                 onClick={handleBulkPublish}
-                className="px-4 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="px-4 py-1.5 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 shadow-sm transition-colors"
                 title="Publish all draft shifts"
               >
                 Publish All ({shifts.filter(s => s.status === 'draft').length})
               </button>
             )}
-            <div className="text-sm text-gray-600">
-              {totals?.totalShifts || 0} shifts • {totals?.totalStaff || 0} staff • {totals?.totalHours?.toFixed(1) || 0} hours
+            <div className="text-sm text-gray-400">
+              {totals?.totalShifts || 0} shifts · {totals?.totalStaff || 0} staff · {totals?.totalHours?.toFixed(1) || 0} hours
             </div>
           </div>
         </div>
