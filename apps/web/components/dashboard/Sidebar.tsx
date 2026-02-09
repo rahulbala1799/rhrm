@@ -90,6 +90,7 @@ const navSections: NavSection[] = [
       { label: 'Right to Work', href: '/compliance/right-to-work', icon: DocumentCheckIcon },
       { label: 'Certifications', href: '/compliance/certifications', icon: AcademicCapIcon },
       { label: 'Expiries', href: '/compliance/expiries', icon: ExclamationTriangleIcon, badge: 2 },
+      { label: 'Contract', href: '/compliance/contract', icon: DocumentTextIcon },
     ],
   },
   {
