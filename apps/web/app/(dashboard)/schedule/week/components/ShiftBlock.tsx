@@ -70,7 +70,10 @@ export default function ShiftBlock({
     return (
       <div
         className="rounded border border-dashed border-gray-300 bg-gray-50 bg-opacity-50 p-1.5 text-xs text-gray-500 opacity-60"
-        onClick={onClick}
+        onClick={(e) => {
+          e.stopPropagation()
+          onClick?.(e)
+        }}
         draggable={!shift.status || shift.status !== 'cancelled'}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
@@ -112,8 +115,14 @@ export default function ShiftBlock({
         color: textColor,
         borderColor: borderColor,
       } : undefined}
-      onClick={onClick}
-      onContextMenu={onContextMenu}
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick?.(e)
+      }}
+      onContextMenu={(e) => {
+        e.stopPropagation()
+        onContextMenu?.(e)
+      }}
       draggable={shift.status !== 'cancelled'}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
