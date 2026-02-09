@@ -80,9 +80,9 @@ export default function StaffFilters({ onFilterChange }: StaffFiltersProps) {
   }
 
   return (
-    <div className="px-6 py-4 border-b border-gray-200 bg-white">
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-4 flex-1 w-full sm:w-auto">
+    <div className="px-6 py-4 border-b border-gray-100 bg-white">
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-3 flex-1 w-full sm:w-auto">
           {/* Search Input */}
           <div className="flex-1 min-w-[200px]">
             <input
@@ -90,7 +90,7 @@ export default function StaffFilters({ onFilterChange }: StaffFiltersProps) {
               placeholder="Search by name, email, or employee number..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              className="w-full px-3 py-2 bg-white ring-1 ring-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-shadow"
             />
           </div>
 
@@ -98,7 +98,7 @@ export default function StaffFilters({ onFilterChange }: StaffFiltersProps) {
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm min-w-[140px]"
+            className="px-3 py-2 bg-white ring-1 ring-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-shadow min-w-[140px]"
           >
             <option value="">All Status</option>
             <option value="active">Active</option>
@@ -110,7 +110,7 @@ export default function StaffFilters({ onFilterChange }: StaffFiltersProps) {
           <select
             value={locationId}
             onChange={(e) => setLocationId(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm min-w-[160px]"
+            className="px-3 py-2 bg-white ring-1 ring-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-shadow min-w-[160px]"
           >
             <option value="">All Locations</option>
             {locations.map((location) => (
@@ -125,7 +125,7 @@ export default function StaffFilters({ onFilterChange }: StaffFiltersProps) {
         {hasActiveFilters && (
           <button
             onClick={clearFilters}
-            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors whitespace-nowrap"
+            className="px-3 py-2 text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors whitespace-nowrap"
           >
             Clear Filters
           </button>

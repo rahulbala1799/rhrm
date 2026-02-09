@@ -86,7 +86,7 @@ export default function PayRunDetail({ runId }: PayRunDetailProps) {
 
   if (loading && !run) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-12 text-center text-gray-500">
+      <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-12 text-center text-gray-500">
         Loading…
       </div>
     )
@@ -94,10 +94,10 @@ export default function PayRunDetail({ runId }: PayRunDetailProps) {
 
   if (!run) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+      <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-12 text-center">
         <p className="text-gray-700 font-medium">Pay run not found</p>
         {fetchError && <p className="mt-1 text-sm text-red-600">{fetchError}</p>}
-        <Link href="/payroll/runs" className="mt-4 inline-block text-sm text-blue-600 hover:text-blue-800">
+        <Link href="/payroll/runs" className="mt-4 inline-block text-sm text-indigo-600 hover:text-indigo-700 transition-colors">
           ← Back to Pay Runs
         </Link>
       </div>
@@ -112,7 +112,7 @@ export default function PayRunDetail({ runId }: PayRunDetailProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/payroll/runs" className="text-sm text-blue-600 hover:text-blue-800">
+          <Link href="/payroll/runs" className="text-sm text-indigo-600 hover:text-indigo-700 transition-colors">
             ← Pay Runs
           </Link>
           <span className="text-gray-300">/</span>
@@ -134,7 +134,7 @@ export default function PayRunDetail({ runId }: PayRunDetailProps) {
               a.click()
               URL.revokeObjectURL(url)
             }}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white ring-1 ring-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
             Export CSV
           </button>
@@ -142,17 +142,17 @@ export default function PayRunDetail({ runId }: PayRunDetailProps) {
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-xs font-medium text-gray-500 uppercase">Staff</p>
-          <p className="text-2xl font-semibold text-gray-900">{run.staff_count}</p>
+        <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-5">
+          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Staff</p>
+          <p className="text-2xl font-semibold text-gray-900 mt-1">{run.staff_count}</p>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-xs font-medium text-gray-500 uppercase">Total hours</p>
-          <p className="text-2xl font-semibold text-gray-900">{Number(run.total_hours).toFixed(2)}</p>
+        <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-5">
+          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Total hours</p>
+          <p className="text-2xl font-semibold text-gray-900 mt-1">{Number(run.total_hours).toFixed(2)}</p>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-xs font-medium text-gray-500 uppercase">Gross pay</p>
-          <p className="text-2xl font-semibold text-gray-900">{format(Number(run.total_gross_pay))}</p>
+        <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-5">
+          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Gross pay</p>
+          <p className="text-2xl font-semibold text-gray-900 mt-1">{format(Number(run.total_gross_pay))}</p>
         </div>
       </div>
 
@@ -167,41 +167,41 @@ export default function PayRunDetail({ runId }: PayRunDetailProps) {
             onCancel={() => setEditingLineId(null)}
           />
         )}
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-hidden">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Employee</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Reg hrs</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">OT hrs</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Rate</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Adj</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Gross</th>
-                {canEdit && <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase" />}
+            <thead>
+              <tr className="border-b border-gray-100">
+                <th className="px-5 py-2.5 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Employee</th>
+                <th className="px-5 py-2.5 text-right text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Reg hrs</th>
+                <th className="px-5 py-2.5 text-right text-[11px] font-semibold text-gray-400 uppercase tracking-wider">OT hrs</th>
+                <th className="px-5 py-2.5 text-right text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Rate</th>
+                <th className="px-5 py-2.5 text-right text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Adj</th>
+                <th className="px-5 py-2.5 text-right text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Gross</th>
+                {canEdit && <th className="px-5 py-2.5 text-right text-[11px] font-semibold text-gray-400 uppercase tracking-wider" />}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody>
               {lines.map((line) => (
-                <tr key={line.id} className={line.status === 'excluded' ? 'bg-gray-50 text-gray-500' : ''}>
-                  <td className="px-6 py-3">
-                    <span className="font-medium text-gray-900">#{line.employee_number} {line.staff_name}</span>
+                <tr key={line.id} className={`border-b border-gray-50 last:border-0 transition-colors ${line.status === 'excluded' ? 'bg-gray-50/50 text-gray-400' : 'hover:bg-gray-50/50'}`}>
+                  <td className="px-5 py-3">
+                    <span className="text-sm font-medium text-gray-900">#{line.employee_number} {line.staff_name}</span>
                     {line.adjustment_reason && (
                       <p className="text-xs text-gray-500 mt-0.5">adj: {line.adjustment_reason}</p>
                     )}
                   </td>
-                  <td className="px-6 py-3 text-right text-sm">{Number(line.regular_hours).toFixed(2)}</td>
-                  <td className="px-6 py-3 text-right text-sm">{Number(line.overtime_hours).toFixed(2)}</td>
-                  <td className="px-6 py-3 text-right text-sm">{format(line.hourly_rate)}</td>
-                  <td className="px-6 py-3 text-right text-sm">
+                  <td className="px-5 py-3 text-right text-sm text-gray-600">{Number(line.regular_hours).toFixed(2)}</td>
+                  <td className="px-5 py-3 text-right text-sm text-gray-600">{Number(line.overtime_hours).toFixed(2)}</td>
+                  <td className="px-5 py-3 text-right text-sm text-gray-600">{format(line.hourly_rate)}</td>
+                  <td className="px-5 py-3 text-right text-sm text-gray-600">
                     {Number(line.adjustments) !== 0 ? (Number(line.adjustments) > 0 ? '+' : '') + format(line.adjustments) : '—'}
                   </td>
-                  <td className="px-6 py-3 text-right text-sm font-medium">{format(line.gross_pay)}</td>
+                  <td className="px-5 py-3 text-right text-sm font-medium text-gray-900">{format(line.gross_pay)}</td>
                   {canEdit && (
-                    <td className="px-6 py-3 text-right">
+                    <td className="px-5 py-3 text-right">
                       <button
                         type="button"
                         onClick={() => setEditingLineId(editingLineId === line.id ? null : line.id)}
-                        className="text-sm text-blue-600 hover:text-blue-800"
+                        className="text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
                       >
                         {editingLineId === line.id ? 'Cancel' : 'Edit'}
                       </button>

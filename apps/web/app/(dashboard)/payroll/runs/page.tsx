@@ -71,7 +71,7 @@ export default function PayRunsPage() {
         action={
           <button
             onClick={() => setModalOpen(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
+            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 shadow-sm font-medium text-sm"
           >
             + Create Run
           </button>
@@ -84,21 +84,21 @@ export default function PayRunsPage() {
       />
 
       <div className="mb-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-xs font-medium text-gray-500 uppercase">Total</p>
-          <p className="text-2xl font-semibold text-gray-900">{counts.total}</p>
+        <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4">
+          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Total</p>
+          <p className="text-2xl font-semibold text-gray-900 tracking-tight">{counts.total}</p>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-xs font-medium text-gray-500 uppercase">Draft</p>
-          <p className="text-2xl font-semibold text-gray-900">{counts.draft}</p>
+        <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4">
+          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Draft</p>
+          <p className="text-2xl font-semibold text-gray-900 tracking-tight">{counts.draft}</p>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-xs font-medium text-gray-500 uppercase">Reviewing</p>
-          <p className="text-2xl font-semibold text-gray-900">{counts.reviewing}</p>
+        <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4">
+          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Reviewing</p>
+          <p className="text-2xl font-semibold text-gray-900 tracking-tight">{counts.reviewing}</p>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-xs font-medium text-gray-500 uppercase">Finalised</p>
-          <p className="text-2xl font-semibold text-gray-900">{counts.finalised}</p>
+        <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4">
+          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Finalised</p>
+          <p className="text-2xl font-semibold text-gray-900 tracking-tight">{counts.finalised}</p>
         </div>
       </div>
 
@@ -106,7 +106,7 @@ export default function PayRunsPage() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          className="px-3 py-2 rounded-lg ring-1 ring-gray-300 border-0 text-sm bg-white focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">All statuses</option>
           <option value="draft">Draft</option>
@@ -117,7 +117,7 @@ export default function PayRunsPage() {
       </div>
 
       {loading ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center text-gray-500">
+        <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-12 text-center text-gray-400">
           Loading…
         </div>
       ) : (

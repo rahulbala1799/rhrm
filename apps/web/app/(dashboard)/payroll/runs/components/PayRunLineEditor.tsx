@@ -63,25 +63,25 @@ export default function PayRunLineEditor({ line, runId, runStatus, onSaved, onCa
   }
 
   return (
-    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
-      <p className="font-medium text-gray-900 mb-3">
+    <div className="bg-gray-50/50 ring-1 ring-gray-200 rounded-xl p-5 mb-4">
+      <p className="font-medium text-gray-900 mb-1">
         #{line.employee_number} {line.staff_name}
       </p>
-      <p className="text-sm text-gray-600 mb-3">
+      <p className="text-sm text-gray-500 mb-4">
         Regular: {Number(line.regular_hours).toFixed(2)}h | OT: {Number(line.overtime_hours).toFixed(2)}h | Rate: {format(line.hourly_rate)}
       </p>
       {error && (
-        <p className="text-sm text-red-600 mb-2">{error}</p>
+        <p className="text-sm text-red-600 mb-3">{error}</p>
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Adjustment (£)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Adjustment</label>
           <input
             type="number"
             step="0.01"
             value={adjustments}
             onChange={(e) => setAdjustments(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            className="w-full px-3 py-2 bg-white ring-1 ring-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-shadow"
           />
         </div>
         <div>
@@ -91,16 +91,16 @@ export default function PayRunLineEditor({ line, runId, runStatus, onSaved, onCa
             value={adjustmentReason}
             onChange={(e) => setAdjustmentReason(e.target.value)}
             placeholder="e.g. Missed Monday shift"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            className="w-full px-3 py-2 bg-white ring-1 ring-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-shadow"
           />
         </div>
       </div>
-      <label className="flex items-center gap-2 mb-3">
+      <label className="flex items-center gap-2 mb-4">
         <input
           type="checkbox"
           checked={excluded}
           onChange={(e) => setExcluded(e.target.checked)}
-          className="rounded border-gray-300"
+          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
         />
         <span className="text-sm text-gray-700">Exclude from this pay run</span>
       </label>
@@ -109,14 +109,14 @@ export default function PayRunLineEditor({ line, runId, runStatus, onSaved, onCa
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 shadow-sm disabled:opacity-50 transition-colors"
         >
           {saving ? 'Saving…' : 'Save'}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white ring-1 ring-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
         >
           Cancel
         </button>

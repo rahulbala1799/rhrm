@@ -1,3 +1,6 @@
+import Link from 'next/link'
+import { ChevronRightIcon } from '@heroicons/react/24/outline'
+
 interface PageHeaderProps {
   title: string
   description?: string
@@ -7,23 +10,21 @@ interface PageHeaderProps {
 
 export default function PageHeader({ title, description, action, breadcrumbs }: PageHeaderProps) {
   return (
-    <div className="mb-6">
+    <div className="mb-8">
       {breadcrumbs && breadcrumbs.length > 0 && (
-        <nav className="mb-4">
-          <ol className="flex items-center space-x-2 text-sm text-gray-500">
+        <nav className="mb-3">
+          <ol className="flex items-center gap-1.5 text-sm">
             {breadcrumbs.map((crumb, index) => (
-              <li key={index} className="flex items-center">
+              <li key={index} className="flex items-center gap-1.5">
                 {index > 0 && (
-                  <svg className="w-4 h-4 mx-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                  <ChevronRightIcon className="w-3.5 h-3.5 text-gray-400" />
                 )}
                 {crumb.href ? (
-                  <a href={crumb.href} className="hover:text-gray-700">
+                  <Link href={crumb.href} className="text-gray-500 hover:text-gray-900 transition-colors">
                     {crumb.label}
-                  </a>
+                  </Link>
                 ) : (
-                  <span className={index === breadcrumbs.length - 1 ? 'text-gray-900 font-medium' : ''}>
+                  <span className={index === breadcrumbs.length - 1 ? 'text-gray-900 font-medium' : 'text-gray-500'}>
                     {crumb.label}
                   </span>
                 )}
@@ -32,17 +33,13 @@ export default function PageHeader({ title, description, action, breadcrumbs }: 
           </ol>
         </nav>
       )}
-      <div className="flex items-start justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
-          {description && <p className="mt-2 text-sm text-gray-600">{description}</p>}
+          <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">{title}</h1>
+          {description && <p className="mt-1 text-sm text-gray-500">{description}</p>}
         </div>
-        {action && <div>{action}</div>}
+        {action && <div className="shrink-0">{action}</div>}
       </div>
     </div>
   )
 }
-
-
-
-

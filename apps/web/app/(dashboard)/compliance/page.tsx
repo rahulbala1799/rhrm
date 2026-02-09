@@ -6,6 +6,12 @@ import StatCard from '@/components/ui/StatCard'
 import { getStatusLabel, getStatusColor } from '@/lib/compliance/types'
 import type { RequirementWithDocument } from '@/lib/compliance/types'
 import { isValidDateFormat, autoFormatDateInput, normalizeDateInput, convertISOtoDDMMYYYY } from '@/lib/compliance/date-utils'
+import {
+  CheckCircleIcon,
+  ClockIcon,
+  ExclamationCircleIcon,
+  CalendarDaysIcon,
+} from '@heroicons/react/24/outline'
 
 export default function ComplianceDocumentsPage() {
   const [loading, setLoading] = useState(true)
@@ -31,7 +37,7 @@ export default function ComplianceDocumentsPage() {
 
   const handleUpload = async (requirementId: string, docType: string, file: File | null, referenceNumber?: string, checkedDate?: string, expiryDate?: string) => {
     setUploading(requirementId)
-    
+
     try {
       const formData = new FormData()
       if (file) formData.append('file', file)
@@ -71,7 +77,7 @@ export default function ComplianceDocumentsPage() {
     return (
       <div>
         <PageHeader title="My Compliance Documents" description="Upload and track your required documents" />
-        <div className="text-center py-12">Loading...</div>
+        <div className="text-center py-12 text-gray-400">Loading...</div>
       </div>
     )
   }
@@ -83,35 +89,38 @@ export default function ComplianceDocumentsPage() {
         description="Upload and track your required documents"
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
         <StatCard
           title="Approved"
           value={stats.approved}
-          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+          iconColor="bg-emerald-50 text-emerald-600"
+          icon={<CheckCircleIcon className="w-5 h-5" />}
         />
         <StatCard
           title="Pending Review"
           value={stats.pending}
-          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+          iconColor="bg-amber-50 text-amber-600"
+          icon={<ClockIcon className="w-5 h-5" />}
         />
         <StatCard
           title="Missing"
           value={stats.missing}
-          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+          iconColor="bg-red-50 text-red-600"
+          icon={<ExclamationCircleIcon className="w-5 h-5" />}
         />
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {requirements.map(({ requirement, document, computedStatus }) => (
-          <div key={requirement.id} className="bg-white rounded-lg border border-gray-200 p-6">
+          <div key={requirement.id} className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-6">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
-                  <h3 className="text-lg font-semibold">{requirement.title}</h3>
+                  <h3 className="text-base font-semibold text-gray-900">{requirement.title}</h3>
                   <StatusBadge status={computedStatus} />
                 </div>
-                <p className="text-sm text-gray-600 mb-4">
-                  {requirement.requirement_level === 'required' ? 'Required' : 
+                <p className="text-sm text-gray-500 mb-4">
+                  {requirement.requirement_level === 'required' ? 'Required' :
                    requirement.requirement_level === 'conditional' ? 'Required when applicable' : 'Optional'}
                 </p>
 
@@ -124,14 +133,14 @@ export default function ComplianceDocumentsPage() {
                 )}
 
                 {computedStatus === 'submitted' && document && (
-                  <p className="text-sm text-gray-600">Submitted on {new Date(document.submitted_at).toLocaleDateString()}. Awaiting review.</p>
+                  <p className="text-sm text-gray-500">Submitted on {new Date(document.submitted_at).toLocaleDateString()}. Awaiting review.</p>
                 )}
 
                 {computedStatus === 'approved' && document && (
-                  <p className="text-sm text-green-600">
+                  <p className="text-sm text-emerald-600">
                     Approved on {document.reviewed_at ? new Date(document.reviewed_at).toLocaleDateString() : 'N/A'}
-                    {document.expiry_date && ` • Expiry: ${convertISOtoDDMMYYYY(document.expiry_date)}`}
-                    {!document.expiry_date && document.expires_at && ` • Expires: ${new Date(document.expires_at).toLocaleDateString()}`}
+                    {document.expiry_date && ` · Expiry: ${convertISOtoDDMMYYYY(document.expiry_date)}`}
+                    {!document.expiry_date && document.expires_at && ` · Expires: ${new Date(document.expires_at).toLocaleDateString()}`}
                   </p>
                 )}
 
@@ -162,7 +171,7 @@ export default function ComplianceDocumentsPage() {
         ))}
 
         {requirements.length === 0 && (
-          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+          <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-12 text-center">
             <p className="text-gray-500">No compliance requirements configured for your role.</p>
           </div>
         )}
@@ -173,15 +182,15 @@ export default function ComplianceDocumentsPage() {
 
 function StatusBadge({ status }: { status: string }) {
   const colors = {
-    not_uploaded: 'bg-red-100 text-red-800',
-    submitted: 'bg-yellow-100 text-yellow-800',
-    approved: 'bg-green-100 text-green-800',
-    rejected: 'bg-red-100 text-red-800',
-    expired: 'bg-orange-100 text-orange-800'
+    not_uploaded: 'bg-red-50 text-red-700 ring-1 ring-red-200',
+    submitted: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200',
+    approved: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
+    rejected: 'bg-red-50 text-red-700 ring-1 ring-red-200',
+    expired: 'bg-orange-50 text-orange-700 ring-1 ring-orange-200'
   }
 
   return (
-    <span className={`px-3 py-1 rounded-full text-xs font-medium ${colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800'}`}>
+    <span className={`px-2.5 py-0.5 rounded-md text-xs font-medium ${colors[status as keyof typeof colors] || 'bg-gray-50 text-gray-700 ring-1 ring-gray-200'}`}>
       {getStatusLabel(status as any)}
     </span>
   )
@@ -199,14 +208,9 @@ function UploadForm({ requirement, onSubmit, uploading }: any) {
   const requiresExpiryDate = requirement.requires_expiry_date === true
 
   const handleExpiryDateChange = (value: string) => {
-    // Normalize input (accept hyphens or slashes)
     const normalized = normalizeDateInput(value)
-    
-    // Auto-format as user types
     const formatted = autoFormatDateInput(normalized)
     setExpiryDate(formatted)
-
-    // Clear error when user starts typing
     if (expiryError) setExpiryError(null)
   }
 
@@ -228,15 +232,10 @@ function UploadForm({ requirement, onSubmit, uploading }: any) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Validate expiry date if required
-    if (!validateExpiryDate()) {
-      return
-    }
-
+    if (!validateExpiryDate()) return
     onSubmit(
-      file, 
-      referenceNumber || undefined, 
+      file,
+      referenceNumber || undefined,
       checkedDate || undefined,
       expiryDate || undefined
     )
@@ -252,9 +251,9 @@ function UploadForm({ requirement, onSubmit, uploading }: any) {
             accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
             onChange={(e) => setFile(e.target.files?.[0] || null)}
             required={needsFile}
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 file:transition-colors"
           />
-          <p className="mt-1 text-xs text-gray-500">Accepted: PDF, JPG, PNG, WEBP, DOC, DOCX (max 5MB)</p>
+          <p className="mt-1 text-xs text-gray-400">Accepted: PDF, JPG, PNG, WEBP, DOC, DOCX (max 5MB)</p>
         </div>
       )}
 
@@ -269,7 +268,7 @@ function UploadForm({ requirement, onSubmit, uploading }: any) {
               value={referenceNumber}
               onChange={(e) => setReferenceNumber(e.target.value)}
               required={needsReference}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-white ring-1 ring-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-shadow"
             />
           </div>
           <div>
@@ -278,7 +277,7 @@ function UploadForm({ requirement, onSubmit, uploading }: any) {
               type="date"
               value={checkedDate}
               onChange={(e) => setCheckedDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-white ring-1 ring-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-shadow"
             />
           </div>
         </div>
@@ -291,9 +290,7 @@ function UploadForm({ requirement, onSubmit, uploading }: any) {
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
+              <CalendarDaysIcon className="h-4 w-4 text-gray-400" />
             </div>
             <input
               type="text"
@@ -302,32 +299,28 @@ function UploadForm({ requirement, onSubmit, uploading }: any) {
               onBlur={validateExpiryDate}
               placeholder="DD/MM/YYYY"
               maxLength={10}
-              className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                expiryError ? 'border-red-500' : 'border-gray-300'
+              className={`w-full pl-10 pr-3 py-2 bg-white ring-1 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-shadow ${
+                expiryError ? 'ring-red-300' : 'ring-gray-200'
               }`}
             />
           </div>
           {expiryError && (
             <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
+              <ExclamationCircleIcon className="w-3.5 h-3.5" />
               {expiryError}
             </p>
           )}
-          <p className="mt-1 text-xs text-gray-500">Format: dd/mm/yyyy</p>
+          <p className="mt-1 text-xs text-gray-400">Format: dd/mm/yyyy</p>
         </div>
       )}
 
       <button
         type="submit"
         disabled={uploading || (needsFile && !file)}
-        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 shadow-sm text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {uploading ? 'Uploading...' : 'Submit'}
       </button>
     </form>
   )
 }
-
-
