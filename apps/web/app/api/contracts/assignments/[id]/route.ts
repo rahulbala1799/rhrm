@@ -82,7 +82,7 @@ export async function PATCH(
     .eq('tenant_id', tenantId)
     .single()
 
-  if (!assignment?.data) {
+  if (!assignment) {
     return NextResponse.json({ error: 'Assignment not found' }, { status: 404 })
   }
 
@@ -92,7 +92,7 @@ export async function PATCH(
   const staffRow = await supabase
     .from('staff')
     .select('user_id')
-    .eq('id', assignment.data.staff_id)
+    .eq('id', assignment.staff_id)
     .single()
 
   const isOwn = staffRow.data?.user_id === userId
