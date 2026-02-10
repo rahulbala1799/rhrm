@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getTenantContext } from '@/lib/auth/get-tenant-context'
 import { NextResponse } from 'next/server'
-import { ensureStandardTemplates } from '../route'
+import { ensureStandardTemplates } from '@/lib/contracts/ensure-standard-templates'
 
 /**
  * POST /api/contracts/templates/ensure-standard
