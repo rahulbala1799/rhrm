@@ -147,7 +147,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const uniqueOrder = [...new Set(clauseKeysOrder)]
+  const uniqueOrder = Array.from(new Set(clauseKeysOrder))
   const clauses = await supabase
     .from('contract_clauses')
     .select('clause_key, body')
