@@ -10,7 +10,7 @@ export default async function Signup() {
   } = await supabase.auth.getUser()
 
   if (user) {
-    redirect('/')
+    redirect('/go')
   }
 
   return (

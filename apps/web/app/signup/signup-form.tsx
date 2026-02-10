@@ -54,7 +54,7 @@ export default function SignupForm() {
         // Refresh to get the session, then redirect
         router.refresh()
         setTimeout(() => {
-          router.push('/')
+          router.push('/go')
         }, 1000)
       } else {
         // Email confirmation required

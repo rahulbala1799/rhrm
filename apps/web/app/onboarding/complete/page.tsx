@@ -9,7 +9,7 @@ export default function OnboardingCompletePage() {
   useEffect(() => {
     // Redirect to home after a moment
     const timer = setTimeout(() => {
-      router.push('/')
+      router.push('/go')
     }, 5000)
 
     return () => clearTimeout(timer)
@@ -42,7 +42,7 @@ export default function OnboardingCompletePage() {
 
         <div className="space-y-4 mb-8">
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/go')}
             className="w-full px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-left"
           >
             <div className="font-semibold">Invite your team</div>
@@ -50,7 +50,7 @@ export default function OnboardingCompletePage() {
           </button>
 
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/go')}
             className="w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-left"
           >
             <div className="font-semibold">Add your first location or role</div>
@@ -58,7 +58,7 @@ export default function OnboardingCompletePage() {
           </button>
 
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/go')}
             className="w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-left"
           >
             <div className="font-semibold">Create your first schedule</div>

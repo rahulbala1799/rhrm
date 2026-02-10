@@ -50,7 +50,7 @@ export default function LoginForm() {
         // Successful login - wait a moment for session to be set, then redirect
         setLoading(false)
         // Use window.location for a hard redirect to ensure session is recognized
-        window.location.href = '/'
+        window.location.href = '/go'
       } else if (data?.user) {
         // User exists but no session - might need email confirmation
         setError('Please check your email to confirm your account before signing in.')

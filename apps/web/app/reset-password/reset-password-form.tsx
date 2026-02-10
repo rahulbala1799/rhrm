@@ -38,7 +38,7 @@ export default function ResetPasswordForm() {
       setLoading(false)
     } else {
       // Password updated successfully
-      router.push('/')
+      router.push('/go')
       router.refresh()
     }
   }

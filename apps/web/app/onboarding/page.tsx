@@ -16,7 +16,7 @@ export default async function OnboardingPage() {
   // Check if user already has a tenant
   const { tenantId } = await getTenantContext()
   if (tenantId) {
-    redirect('/')
+    redirect('/go')
   }
 
   // Check for onboarding progress (only own profile, self-only query)

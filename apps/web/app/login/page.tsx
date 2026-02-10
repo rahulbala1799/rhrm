@@ -10,7 +10,7 @@ export default async function Login() {
   } = await supabase.auth.getUser()
 
   if (user) {
-    redirect('/')
+    redirect('/go')
   }
 
   return (
