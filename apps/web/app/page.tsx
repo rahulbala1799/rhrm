@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { getTenantContext } from '@/lib/auth/get-tenant-context'
+import LandingPage from '@/components/landing/LandingPage'
 
 // Ensure root is never cached so we always have fresh auth + tenant context
 export const dynamic = 'force-dynamic'
@@ -13,7 +14,7 @@ export default async function Home() {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect('/login')
+    return <LandingPage />
   }
 
   // Source of Truth: Active membership check (single source of truth)
