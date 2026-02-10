@@ -11,8 +11,8 @@ export async function ensureStandardTemplates(supabase: SupabaseClient, tenantId
     name: t.name,
     jurisdiction: t.jurisdiction,
     version: t.version,
-    packs_enabled: t.packs_enabled as string[],
-    generator_schema: t.generator_schema as Record<string, unknown>,
+    packs_enabled: t.packs_enabled as unknown as string[],
+    generator_schema: t.generator_schema as unknown as Record<string, unknown>,
     is_standard: t.is_standard,
   }))
 
