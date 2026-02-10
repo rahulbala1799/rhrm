@@ -173,8 +173,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to store generated contract' }, { status: 500 })
   }
 
-  const { data: user } = await supabase.auth.getUser()
-  const userId = user?.data?.user?.id ?? null
+  const { data: { user } } = await supabase.auth.getUser()
+  const userId = user?.id ?? null
 
   const { data: assignment, error } = await supabase
     .from('contract_assignments')

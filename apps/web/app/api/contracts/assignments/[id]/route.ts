@@ -86,8 +86,8 @@ export async function PATCH(
     return NextResponse.json({ error: 'Assignment not found' }, { status: 404 })
   }
 
-  const { data: user } = await supabase.auth.getUser()
-  const userId = user?.data?.user?.id
+  const { data: { user } } = await supabase.auth.getUser()
+  const userId = user?.id ?? null
 
   const staffRow = await supabase
     .from('staff')

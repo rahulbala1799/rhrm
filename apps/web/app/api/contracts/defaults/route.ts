@@ -53,8 +53,8 @@ export async function PUT(request: Request) {
 
   const supabase = await createClient()
 
-  const { data: user } = await supabase.auth.getUser()
-  const updatedBy = user?.data?.user?.id ?? null
+  const { data: { user } } = await supabase.auth.getUser()
+  const updatedBy = user?.id ?? null
 
   const { data, error } = await supabase
     .from('company_contract_defaults')
